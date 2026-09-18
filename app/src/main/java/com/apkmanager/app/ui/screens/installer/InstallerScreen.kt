@@ -37,6 +37,7 @@ import com.apkmanager.app.ui.components.GradientButton
 import com.apkmanager.app.ui.components.InstallProgress
 import com.apkmanager.app.ui.components.InstallProgressIndicator
 import com.apkmanager.app.ui.theme.*
+import com.apkmanager.app.util.AppIconImage
 
 /**
  * Premium Installer Screen for selecting and installing local or split APK files.
@@ -124,7 +125,10 @@ fun InstallerScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Connection Status Pill
-            ConnectionStatusBar(connectionState = connectionState)
+            ConnectionStatusBar(
+                connectionState = connectionState,
+                onVerifyClick = viewModel::verifyConnection
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
             if (selectedApks.isEmpty() && installProgress is InstallProgress.Idle) {
@@ -262,10 +266,10 @@ fun InstallerScreen(
                                             .padding(12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.InsertDriveFile,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp),
+                                        AppIconImage(
+                                            uri = apk.uri,
+                                            modifier = Modifier.size(28.dp),
+                                            fallbackIcon = Icons.AutoMirrored.Filled.InsertDriveFile,
                                             tint = PrimaryPurpleLight
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
@@ -301,9 +305,9 @@ fun InstallerScreen(
                 when (installProgress) {
                     is InstallProgress.Idle -> {
                         GradientButton(
-                            text = if (connectionState.isConnected) "Install via ADB" else "ADB Not Connected",
-                            onClick = viewModel::install,
-                            enabled = selectedApks.isNotEmpty() && connectionState.isConnected,
+                            text = if (connectionState.isConnected) "Install via ADB (Silent)" else "Install (Package Installer)",
+                            onClick = { viewModel.install(context) },
+                            enabled = selectedApks.isNotEmpty(),
                             icon = Icons.Default.InstallMobile,
                             gradient = AppGradients.purpleToPink
                         )
@@ -320,7 +324,7 @@ fun InstallerScreen(
                             ) {
                                 Icon(Icons.Default.Link, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Connect Wireless Debugging", fontWeight = FontWeight.Bold)
+                                Text("Connect Wireless Debugging (Optional)", fontWeight = FontWeight.Bold)
                             }
                         }
 

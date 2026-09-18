@@ -43,6 +43,45 @@ class AdbRepository(private val context: Context) {
     val isConnected: Boolean get() = adbClient.isConnected
 
     /**
+     * Actively tests if the ADB connection is truly responsive.
+     * If broken or disconnected, attempts auto-reconnect using discovered mDNS port
+     * or last known paired port. Updates connectionState accordingly.
+     */
+    suspend fun verifyOrReconnect(): Boolean {
+        // 1. If currently connected, ping actively
+        if (adbClient.isConnected) {
+            if (adbClient.ping()) {
+                val lastPort = preferencesManager.lastPort.first()
+                if (_connectionState.value !is ConnectionState.Connected) {
+                    _connectionState.value = ConnectionState.Connected(lastPort)
+                }
+                return true
+            }
+        }
+
+        // 2. Mark disconnected
+        _connectionState.value = ConnectionState.Disconnected
+
+        // 3. Attempt auto-reconnect if device has been paired
+        val isPaired = preferencesManager.isPaired.first()
+        if (!isPaired) return false
+
+        // Check discovered mDNS services first, then fall back to last saved port
+        val discoveredPort = connectDiscovery.services.value.firstOrNull()?.port
+        val savedPort = preferencesManager.lastPort.first()
+        val targetPort = discoveredPort ?: if (savedPort > 0) savedPort else null
+
+        if (targetPort != null && targetPort > 0) {
+            val connected = connect(targetPort)
+            if (connected) {
+                return adbClient.ping()
+            }
+        }
+
+        return false
+    }
+
+    /**
      * Pairs with the ADB daemon.
      */
     suspend fun pair(port: Int, pairingCode: String): Boolean {
@@ -156,23 +195,32 @@ class AdbRepository(private val context: Context) {
     }
 
     /**
-     * Installs a single APK.
+     * Installs a single APK. Verifies active connection first.
      */
     suspend fun installApk(apkUri: Uri): AdbInstaller.InstallResult {
+        if (!verifyOrReconnect()) {
+            return AdbInstaller.InstallResult.Failure("ADB not connected or daemon stopped responding")
+        }
         return adbClient.installApk(apkUri)
     }
 
     /**
-     * Installs split APKs.
+     * Installs split APKs. Verifies active connection first.
      */
     suspend fun installSplitApks(apkUris: List<Uri>): AdbInstaller.InstallResult {
+        if (!verifyOrReconnect()) {
+            return AdbInstaller.InstallResult.Failure("ADB not connected or daemon stopped responding")
+        }
         return adbClient.installSplitApks(apkUris)
     }
 
     /**
-     * Uninstalls a package.
+     * Uninstalls a package. Verifies active connection first.
      */
     suspend fun uninstallPackage(packageName: String): AdbInstaller.InstallResult {
+        if (!verifyOrReconnect()) {
+            return AdbInstaller.InstallResult.Failure("ADB not connected or daemon stopped responding")
+        }
         return adbClient.uninstallPackage(packageName)
     }
 
@@ -180,6 +228,7 @@ class AdbRepository(private val context: Context) {
      * Lists installed packages with paths and installers in a single batch command.
      */
     suspend fun listPackagesDetailed(includeSystemApps: Boolean = false): List<com.apkmanager.app.adb.PackageEntry> {
+        verifyOrReconnect()
         return adbClient.listPackagesDetailed(includeSystemApps)
     }
 
@@ -187,6 +236,7 @@ class AdbRepository(private val context: Context) {
      * Lists installed packages.
      */
     suspend fun listPackages(includeSystemApps: Boolean = false): List<String> {
+        verifyOrReconnect()
         return adbClient.listPackages(includeSystemApps)
     }
 
@@ -194,6 +244,7 @@ class AdbRepository(private val context: Context) {
      * Gets package details.
      */
     suspend fun getPackageInfo(packageName: String): Map<String, String> {
+        verifyOrReconnect()
         return adbClient.getPackageInfo(packageName)
     }
 
@@ -201,6 +252,7 @@ class AdbRepository(private val context: Context) {
      * Gets the APK path for a package.
      */
     suspend fun getApkPath(packageName: String): String? {
+        verifyOrReconnect()
         return adbClient.getApkPath(packageName)
     }
 
@@ -208,6 +260,7 @@ class AdbRepository(private val context: Context) {
      * Executes a raw shell command via ADB.
      */
     suspend fun executeShell(command: String): com.apkmanager.app.adb.ShellResult {
+        verifyOrReconnect()
         return try {
             adbClient.executeShell(command)
         } catch (e: Exception) {

@@ -41,6 +41,7 @@ import com.apkmanager.app.ui.components.GlassCard
 import com.apkmanager.app.ui.components.GradientButton
 import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
 import com.apkmanager.app.ui.theme.*
+import com.apkmanager.app.util.AppIconImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,10 +54,10 @@ fun StoreScreen(
     )
 ) {
     val items by viewModel.filteredItems.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
-    val categories by viewModel.categories.collectAsStateWithLifecycle()
     val connectionState by adbRepository.connectionState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -64,35 +65,33 @@ fun StoreScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    "App Store",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Black
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Surface(
-                                    color = SecondaryCyan.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = BorderStroke(1.dp, SecondaryCyan.copy(alpha = 0.4f))
-                                ) {
-                                    Text(
-                                        text = "CURATED",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = SecondaryCyan,
-                                        fontWeight = FontWeight.Black,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "High quality open-source applications",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                "App Store",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Black
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                color = AccentOrange.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(6.dp),
+                                border = BorderStroke(1.dp, AccentOrange.copy(alpha = 0.5f))
+                            ) {
+                                Text(
+                                    text = "GITHUB",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = AccentOrange,
+                                    fontWeight = FontWeight.Black,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
                         }
+                        Text(
+                            text = "Curated open-source Android apps",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 },
                 navigationIcon = {
@@ -131,7 +130,10 @@ fun StoreScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Connection Status
-            ConnectionStatusBar(connectionState = connectionState)
+            ConnectionStatusBar(
+                connectionState = connectionState,
+                onVerifyClick = viewModel::verifyConnection
+            )
             Spacer(modifier = Modifier.height(10.dp))
 
             // Search Bar
@@ -277,24 +279,31 @@ fun StoreAppCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(categoryColor.copy(alpha = 0.85f), categoryColor.copy(alpha = 0.35f))
+                val pkgForIcon = item.installedPackage ?: item.app.packageNames.firstOrNull()
+                AppIconImage(
+                    packageName = pkgForIcon,
+                    modifier = Modifier.size(50.dp),
+                    contentFallback = {
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(categoryColor.copy(alpha = 0.85f), categoryColor.copy(alpha = 0.35f))
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = getCategoryIcon(item.app.icon, item.app.category),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
                             )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = getCategoryIcon(item.app.icon, item.app.category),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
+                        }
+                    }
+                )
 
                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -497,7 +506,7 @@ fun StoreAppCard(
                             OutlinedButton(
                                 onClick = onInstallOrUpdate,
                                 shape = RoundedCornerShape(12.dp),
-                                enabled = isAdbConnected,
+                                enabled = item.latestAsset != null,
                                 modifier = Modifier.pressScaleEffect()
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -512,7 +521,7 @@ fun StoreAppCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .pressScaleEffect(),
-                            enabled = isAdbConnected
+                            enabled = item.latestAsset != null
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -523,17 +532,17 @@ fun StoreAppCard(
                 else -> {
                     if (!item.isInstalled) {
                         GradientButton(
-                            text = if (isAdbConnected) "Install via ADB" else "Connect ADB to Install",
+                            text = if (isAdbConnected) "Install via ADB" else "Install (Package Installer)",
                             onClick = onInstallOrUpdate,
-                            enabled = isAdbConnected && item.latestAsset != null,
+                            enabled = item.latestAsset != null,
                             icon = Icons.Default.Download,
                             gradient = AppGradients.primary
                         )
                     } else if (item.isUpdateAvailable) {
                         GradientButton(
-                            text = if (isAdbConnected) "Update via ADB" else "Connect ADB to Update",
+                            text = if (isAdbConnected) "Update via ADB" else "Update (Package Installer)",
                             onClick = onInstallOrUpdate,
-                            enabled = isAdbConnected && item.latestAsset != null,
+                            enabled = item.latestAsset != null,
                             icon = Icons.Default.SystemUpdate,
                             gradient = AppGradients.purpleToPink
                         )
@@ -570,7 +579,7 @@ fun StoreAppCard(
                             OutlinedButton(
                                 onClick = onInstallOrUpdate,
                                 shape = RoundedCornerShape(14.dp),
-                                enabled = isAdbConnected && item.latestAsset != null,
+                                enabled = item.latestAsset != null,
                                 modifier = Modifier
                                     .height(48.dp)
                                     .pressScaleEffect()

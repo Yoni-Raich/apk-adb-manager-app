@@ -39,6 +39,28 @@ class AdbClient(private val context: Context) {
     val isConnected: Boolean
         get() = client?.connectionCheck() == true
 
+    /**
+     * Actively verifies if the connection is live with a lightweight probe.
+     * If adbd dropped or the socket closed, disconnects and returns false.
+     */
+    suspend fun ping(): Boolean = withContext(Dispatchers.IO) {
+        connectionMutex.withLock {
+            val adb = client ?: return@withLock false
+            try {
+                val res = adb.shell("echo 1")
+                if (res.exitCode == 0 && res.output.trim() == "1") {
+                    true
+                } else {
+                    disconnectInternal()
+                    false
+                }
+            } catch (e: Exception) {
+                disconnectInternal()
+                false
+            }
+        }
+    }
+
     suspend fun pair(
         port: Int,
         pairingCode: String

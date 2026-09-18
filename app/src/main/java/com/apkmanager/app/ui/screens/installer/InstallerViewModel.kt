@@ -78,27 +78,70 @@ class InstallerViewModel(
         _installProgress.value = InstallProgress.Idle
     }
 
+    init {
+        verifyConnection()
+    }
+
     /**
-     * Starts the installation process.
+     * Actively tests ADB connection health and attempts auto-reconnect if needed.
      */
-    fun install() {
+    fun verifyConnection() {
+        viewModelScope.launch {
+            adbRepository.verifyOrReconnect()
+        }
+    }
+
+    /**
+     * Starts the installation process with ADB or standard Package Installer fallback.
+     */
+    fun install(context: Context) {
         val apks = _selectedApks.value
         if (apks.isEmpty()) return
 
         viewModelScope.launch {
-            _installProgress.value = InstallProgress.Installing("Preparing installation...")
+            _installProgress.value = InstallProgress.Installing("Verifying connection...")
 
-            val result = if (apks.size == 1) {
-                _installProgress.value = InstallProgress.Installing("Installing ${apks[0].fileName}...")
-                adbRepository.installApk(apks[0].uri)
+            val isAdbReady = adbRepository.verifyOrReconnect()
+            if (isAdbReady) {
+                _installProgress.value = if (apks.size == 1) {
+                    InstallProgress.Installing("Installing ${apks[0].fileName} via ADB (silent)...")
+                } else {
+                    InstallProgress.Installing("Installing ${apks.size} split APKs via ADB (silent)...")
+                }
+
+                val result = if (apks.size == 1) {
+                    adbRepository.installApk(apks[0].uri)
+                } else {
+                    adbRepository.installSplitApks(apks.map { it.uri })
+                }
+
+                when (result) {
+                    is AdbInstaller.InstallResult.Success -> {
+                        _installProgress.value = InstallProgress.Success("Installation successful!")
+                    }
+                    is AdbInstaller.InstallResult.Failure -> {
+                        _installProgress.value = InstallProgress.Installing("ADB install failed, launching Package Installer...")
+                        launchPackageInstaller(context, apks)
+                    }
+                }
             } else {
-                _installProgress.value = InstallProgress.Installing("Installing ${apks.size} split APKs...")
-                adbRepository.installSplitApks(apks.map { it.uri })
+                _installProgress.value = InstallProgress.Installing("Launching Android Package Installer...")
+                launchPackageInstaller(context, apks)
             }
+        }
+    }
 
-            _installProgress.value = when (result) {
-                is AdbInstaller.InstallResult.Success -> InstallProgress.Success("Installation successful!")
-                is AdbInstaller.InstallResult.Failure -> InstallProgress.Failure(result.error)
+    private suspend fun launchPackageInstaller(context: Context, apks: List<ApkFileInfo>) {
+        when (val sysResult = com.apkmanager.app.installer.SystemPackageInstaller.installApkUris(context, apks.map { it.uri })) {
+            is com.apkmanager.app.installer.SystemPackageInstaller.Result.Success -> {
+                _installProgress.value = InstallProgress.Success("Package installer launched")
+            }
+            is com.apkmanager.app.installer.SystemPackageInstaller.Result.PermissionRequired -> {
+                context.startActivity(sysResult.intent)
+                _installProgress.value = InstallProgress.Failure("Permission required to install unknown apps. Please allow and retry.")
+            }
+            is com.apkmanager.app.installer.SystemPackageInstaller.Result.Failure -> {
+                _installProgress.value = InstallProgress.Failure(sysResult.error)
             }
         }
     }

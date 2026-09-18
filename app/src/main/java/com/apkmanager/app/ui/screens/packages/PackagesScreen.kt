@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -20,9 +21,11 @@ import com.apkmanager.app.data.PackageInfo
 import com.apkmanager.app.repository.AdbRepository
 import com.apkmanager.app.repository.PackageRepository
 import com.apkmanager.app.ui.animation.pressScaleEffect
+import com.apkmanager.app.ui.components.ConnectionStatusBar
 import com.apkmanager.app.ui.components.PackageListItem
 import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
 import com.apkmanager.app.ui.theme.SecondaryCyan
+import com.apkmanager.app.util.AppIconImage
 
 /**
  * Premium Package Manager screen for browsing and inspecting installed applications.
@@ -43,6 +46,8 @@ fun PackagesScreen(
     val showSystemApps by viewModel.showSystemApps.collectAsStateWithLifecycle()
     val selectedPackage by viewModel.selectedPackage.collectAsStateWithLifecycle()
     val uninstallResult by viewModel.uninstallResult.collectAsStateWithLifecycle()
+    val connectionState by adbRepository.connectionState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     // Snackbar for uninstall results
     val snackbarHostState = remember { SnackbarHostState() }
@@ -102,6 +107,13 @@ fun PackagesScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Connection Status
+            ConnectionStatusBar(
+                connectionState = connectionState,
+                onVerifyClick = viewModel::verifyConnection,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
             // Search bar
             OutlinedTextField(
                 value = searchQuery,
@@ -177,8 +189,9 @@ fun PackagesScreen(
     selectedPackage?.let { pkg ->
         PackageDetailDialog(
             packageInfo = pkg,
+            isAdbConnected = connectionState.isConnected,
             onDismiss = viewModel::clearSelection,
-            onUninstall = { viewModel.uninstallPackage(pkg.packageName) }
+            onUninstall = { viewModel.uninstallPackage(context, pkg.packageName) }
         )
     }
 }
@@ -189,6 +202,7 @@ fun PackagesScreen(
 @Composable
 fun PackageDetailDialog(
     packageInfo: PackageInfo,
+    isAdbConnected: Boolean,
     onDismiss: () -> Unit,
     onUninstall: () -> Unit
 ) {
@@ -196,11 +210,18 @@ fun PackageDetailDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(22.dp),
         title = {
-            Text(
-                packageInfo.displayName,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Black
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AppIconImage(
+                    packageName = packageInfo.packageName,
+                    modifier = Modifier.size(38.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    packageInfo.displayName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Black
+                )
+            }
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -247,7 +268,7 @@ fun PackageDetailDialog(
                         containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Uninstall via ADB", fontWeight = FontWeight.Bold)
+                    Text(if (isAdbConnected) "Uninstall via ADB" else "Uninstall", fontWeight = FontWeight.Bold)
                 }
             }
         },

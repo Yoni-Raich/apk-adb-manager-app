@@ -74,7 +74,10 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> viewModel.startDiscovery()
+                Lifecycle.Event.ON_RESUME -> {
+                    viewModel.startDiscovery()
+                    viewModel.verifyConnection()
+                }
                 Lifecycle.Event.ON_PAUSE -> viewModel.stopDiscovery()
                 else -> Unit
             }
@@ -158,7 +161,10 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Connection Status Pill
-            ConnectionStatusBar(connectionState = connectionState)
+            ConnectionStatusBar(
+                connectionState = connectionState,
+                onVerifyClick = viewModel::verifyConnection
+            )
 
             // Auto-discovered wireless debugging endpoint hint
             if (!connectionState.isConnected) {
@@ -268,7 +274,7 @@ fun HomeScreen(
                     subtitle = "Local & split files",
                     icon = Icons.Default.InstallMobile,
                     gradient = AppGradients.purpleToPink,
-                    enabled = connectionState.isConnected,
+                    enabled = true,
                     onClick = onNavigateToInstaller,
                     modifier = Modifier.weight(1f)
                 )
@@ -439,7 +445,7 @@ private fun SelfUpdateCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Installed: v${selfInfo.currentVersionName} • Silent ADB upgrade",
+                        text = if (isConnected) "Installed: v${selfInfo.currentVersionName} • Silent ADB upgrade" else "Installed: v${selfInfo.currentVersionName} • Package Installer",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -482,9 +488,9 @@ private fun SelfUpdateCard(
                 }
                 else -> {
                     GradientButton(
-                        text = if (isConnected) "Update App Now via ADB" else "Connect ADB to Update",
+                        text = if (isConnected) "Update App Now via ADB" else "Update (Package Installer)",
                         onClick = onUpdateClick,
-                        enabled = isConnected,
+                        enabled = true,
                         icon = Icons.Default.Download,
                         gradient = AppGradients.purpleToPink
                     )

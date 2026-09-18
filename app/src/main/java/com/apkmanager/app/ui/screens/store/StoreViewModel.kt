@@ -57,6 +57,16 @@ class StoreViewModel(
 
     init {
         loadCatalog()
+        verifyConnection()
+    }
+
+    /**
+     * Actively tests ADB connection health and attempts auto-reconnect if needed.
+     */
+    fun verifyConnection() {
+        viewModelScope.launch {
+            adbRepository.verifyOrReconnect()
+        }
     }
 
     fun loadCatalog(forceRefresh: Boolean = false) {

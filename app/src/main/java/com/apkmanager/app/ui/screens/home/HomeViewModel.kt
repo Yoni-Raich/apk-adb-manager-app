@@ -65,6 +65,16 @@ class HomeViewModel(
         }
         // Check for self update on startup
         checkSelfUpdate()
+        verifyConnection()
+    }
+
+    /**
+     * Actively tests ADB connection health and attempts auto-reconnect if needed.
+     */
+    fun verifyConnection() {
+        viewModelScope.launch {
+            adbRepository.verifyOrReconnect()
+        }
     }
 
     fun checkSelfUpdate(forceRefresh: Boolean = false) {

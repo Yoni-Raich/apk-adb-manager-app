@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,7 +31,8 @@ import com.apkmanager.app.ui.theme.*
 @Composable
 fun ConnectionStatusBar(
     connectionState: ConnectionState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onVerifyClick: (() -> Unit)? = null
 ) {
     val indicatorColor by animateColorAsState(
         targetValue = when (connectionState) {
@@ -57,6 +59,10 @@ fun ConnectionStatusBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(
+                    if (onVerifyClick != null) Modifier.clickable(onClick = onVerifyClick)
+                    else Modifier
+                )
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -93,6 +99,13 @@ fun ConnectionStatusBar(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+                if (onVerifyClick != null && !connectionState.isConnected) {
+                    Text(
+                        text = "Tap to verify / reconnect",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             // Connection state badge

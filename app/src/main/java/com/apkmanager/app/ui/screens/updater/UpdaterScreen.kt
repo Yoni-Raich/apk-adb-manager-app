@@ -34,6 +34,7 @@ import com.apkmanager.app.ui.components.GlassCard
 import com.apkmanager.app.ui.components.GradientButton
 import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
 import com.apkmanager.app.ui.theme.*
+import com.apkmanager.app.util.AppIconImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,7 +138,10 @@ fun UpdaterScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Connection Status
-            ConnectionStatusBar(connectionState = connectionState)
+            ConnectionStatusBar(
+                connectionState = connectionState,
+                onVerifyClick = viewModel::verifyConnection
+            )
             Spacer(modifier = Modifier.height(10.dp))
 
             // Update All Banner if updates are available
@@ -179,7 +183,7 @@ fun UpdaterScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Batch silent update via ADB",
+                                    text = if (connectionState.isConnected) "Batch silent update via ADB" else "Batch update via Package Installer",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -187,14 +191,14 @@ fun UpdaterScreen(
                         }
                         Button(
                             onClick = viewModel::updateAll,
-                            enabled = connectionState.isConnected,
+                            enabled = true,
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
                             modifier = Modifier.pressScaleEffect()
                         ) {
                             Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Update All", fontWeight = FontWeight.Bold)
+                            Text(if (connectionState.isConnected) "Update All" else "Update All (Installer)", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -310,25 +314,31 @@ fun TrackedAppItem(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // App Avatar with vibrant initial letter
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(PrimaryPurple.copy(alpha = 0.8f), SecondaryCyan.copy(alpha = 0.6f))
+                // Authentic App Icon with stylized initial letter fallback
+                AppIconImage(
+                    packageName = app.packageName,
+                    modifier = Modifier.size(46.dp),
+                    contentFallback = {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(PrimaryPurple.copy(alpha = 0.8f), SecondaryCyan.copy(alpha = 0.6f))
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = app.appName.firstOrNull()?.uppercase() ?: "?",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
                             )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = app.appName.firstOrNull()?.uppercase() ?: "?",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White
-                    )
-                }
+                        }
+                    }
+                )
 
                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -475,9 +485,9 @@ fun TrackedAppItem(
                 is UpdateStatus.UpdateAvailable -> {
                     Spacer(modifier = Modifier.height(10.dp))
                     GradientButton(
-                        text = if (isAdbConnected) "Update via ADB" else "Connect ADB to Update",
+                        text = if (isAdbConnected) "Update via ADB" else "Update (Package Installer)",
                         onClick = onUpdate,
-                        enabled = isAdbConnected,
+                        enabled = true,
                         icon = Icons.Default.SystemUpdate,
                         gradient = AppGradients.purpleToPink
                     )

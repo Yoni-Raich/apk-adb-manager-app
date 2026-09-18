@@ -61,12 +61,11 @@ fun PackageListItem(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Android,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = if (packageInfo.isSystemApp) MaterialTheme.colorScheme.onSurfaceVariant
-                    else SecondaryCyan
+                com.apkmanager.app.util.AppIconImage(
+                    packageName = packageInfo.packageName,
+                    modifier = Modifier.size(32.dp),
+                    fallbackIcon = Icons.Default.Android,
+                    tint = if (packageInfo.isSystemApp) MaterialTheme.colorScheme.onSurfaceVariant else SecondaryCyan
                 )
             }
 

@@ -272,11 +272,6 @@ class StoreRepository(
             return@withContext false
         }
 
-        if (!adbRepository.isConnected) {
-            onProgress(UpdateStatus.Error("ADB is not connected. Connect Wireless Debugging first."))
-            return@withContext false
-        }
-
         val cacheDir = File(context.cacheDir, "store_downloads").apply { mkdirs() }
         val apkFile = File(cacheDir, "${item.app.id}_${asset.name}")
 
@@ -293,25 +288,58 @@ class StoreRepository(
                 return@withContext false
             }
 
-            onProgress(UpdateStatus.Installing("Installing via ADB..."))
+            val isAdbReady = adbRepository.verifyOrReconnect()
+            if (isAdbReady) {
+                onProgress(UpdateStatus.Installing("Installing via ADB (silent)..."))
+                val installResult = adbRepository.installApk(Uri.fromFile(apkFile))
 
-            val installResult = adbRepository.installApk(Uri.fromFile(apkFile))
-
-            when (installResult) {
-                is AdbInstaller.InstallResult.Success -> {
-                    onProgress(UpdateStatus.Success("Successfully installed ${item.app.name}!"))
-                    true
+                when (installResult) {
+                    is AdbInstaller.InstallResult.Success -> {
+                        onProgress(UpdateStatus.Success("Successfully installed ${item.app.name}!"))
+                        true
+                    }
+                    is AdbInstaller.InstallResult.Failure -> {
+                        onProgress(UpdateStatus.Installing("ADB install failed, launching Package Installer..."))
+                        val sysResult = com.apkmanager.app.installer.SystemPackageInstaller.installApkFile(context, apkFile)
+                        when (sysResult) {
+                            is com.apkmanager.app.installer.SystemPackageInstaller.Result.Success -> {
+                                onProgress(UpdateStatus.Success("Package installer launched"))
+                                true
+                            }
+                            is com.apkmanager.app.installer.SystemPackageInstaller.Result.PermissionRequired -> {
+                                context.startActivity(sysResult.intent)
+                                onProgress(UpdateStatus.Error("Please allow installing unknown apps, then retry"))
+                                false
+                            }
+                            is com.apkmanager.app.installer.SystemPackageInstaller.Result.Failure -> {
+                                onProgress(UpdateStatus.Error(sysResult.error))
+                                false
+                            }
+                        }
+                    }
                 }
-                is AdbInstaller.InstallResult.Failure -> {
-                    onProgress(UpdateStatus.Error("ADB Install Error: ${installResult.error}"))
-                    false
+            } else {
+                onProgress(UpdateStatus.Installing("Launching Package Installer..."))
+                val sysResult = com.apkmanager.app.installer.SystemPackageInstaller.installApkFile(context, apkFile)
+                when (sysResult) {
+                    is com.apkmanager.app.installer.SystemPackageInstaller.Result.Success -> {
+                        onProgress(UpdateStatus.Success("Package installer launched"))
+                        true
+                    }
+                    is com.apkmanager.app.installer.SystemPackageInstaller.Result.PermissionRequired -> {
+                        context.startActivity(sysResult.intent)
+                        onProgress(UpdateStatus.Error("Please allow installing unknown apps, then retry"))
+                        false
+                    }
+                    is com.apkmanager.app.installer.SystemPackageInstaller.Result.Failure -> {
+                        onProgress(UpdateStatus.Error(sysResult.error))
+                        false
+                    }
                 }
             }
         } catch (e: Exception) {
             onProgress(UpdateStatus.Error(e.message ?: "Installation error"))
             false
-        } finally {
-            if (apkFile.exists()) apkFile.delete()
         }
     }
 

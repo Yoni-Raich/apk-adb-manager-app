@@ -35,5 +35,16 @@
     ],
     "category": "Productivity",
     "icon": "smart_toy"
+  },
+  {
+    "id": "wall-climber",
+    "name": "Wall Climber: Arcade Rush",
+    "description": "Fast-paced portrait arcade climber with dynamic hazards, power-ups, customizable skins & trails.",
+    "githubRepo": "Yoni-Raich/wall-climber",
+    "packageNames": [
+      "com.example.wallclimber"
+    ],
+    "category": "Games",
+    "icon": "play"
   }
 ]

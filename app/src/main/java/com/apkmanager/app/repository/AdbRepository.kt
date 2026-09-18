@@ -149,6 +149,13 @@ class AdbRepository(private val context: Context) {
     }
 
     /**
+     * Pushes a local file to a remote destination via ADB sync.
+     */
+    suspend fun pushFile(localFile: java.io.File, remotePath: String) {
+        adbClient.pushFile(localFile, remotePath)
+    }
+
+    /**
      * Installs a single APK.
      */
     suspend fun installApk(apkUri: Uri): AdbInstaller.InstallResult {
@@ -167,6 +174,13 @@ class AdbRepository(private val context: Context) {
      */
     suspend fun uninstallPackage(packageName: String): AdbInstaller.InstallResult {
         return adbClient.uninstallPackage(packageName)
+    }
+
+    /**
+     * Lists installed packages with paths and installers in a single batch command.
+     */
+    suspend fun listPackagesDetailed(includeSystemApps: Boolean = false): List<com.apkmanager.app.adb.PackageEntry> {
+        return adbClient.listPackagesDetailed(includeSystemApps)
     }
 
     /**
@@ -194,7 +208,14 @@ class AdbRepository(private val context: Context) {
      * Executes a raw shell command via ADB.
      */
     suspend fun executeShell(command: String): com.apkmanager.app.adb.ShellResult {
-        return adbClient.executeShell(command)
+        return try {
+            adbClient.executeShell(command)
+        } catch (e: Exception) {
+            if (!adbClient.isConnected) {
+                _connectionState.value = ConnectionState.Disconnected
+            }
+            throw e
+        }
     }
 
     /**
@@ -216,13 +237,16 @@ class AdbRepository(private val context: Context) {
         val identityDir = java.io.File(context.filesDir, "kadb_identity")
         identityDir.listFiles()?.forEach { it.delete() }
 
-        // Regenerate KadbCert in memory
-        KadbCert.set(byteArrayOf(), byteArrayOf())
-        val (cert, key) = KadbCert.get()
-        val certFile = java.io.File(identityDir.apply { mkdirs() }, "certificate.pem")
-        val keyFile = java.io.File(identityDir, "private_key.pem")
-        certFile.writeBytes(cert)
-        keyFile.writeBytes(key)
+        // Regenerate KadbCert by calling get() which generates a fresh key pair internally
+        try {
+            val (cert, key) = KadbCert.get()
+            val certFile = java.io.File(identityDir.apply { mkdirs() }, "certificate.pem")
+            val keyFile = java.io.File(identityDir, "private_key.pem")
+            certFile.writeBytes(cert)
+            keyFile.writeBytes(key)
+        } catch (e: Exception) {
+            android.util.Log.e("AdbRepository", "Failed to regenerate TLS certificate", e)
+        }
 
         _connectionState.value = ConnectionState.Disconnected
     }

@@ -74,7 +74,7 @@ class SelfUpdateRepository(
                         latestRelease = release,
                         status = UpdateStatus.Error("No compatible APK asset found in release ${release.tagName}")
                     )
-                } else if (isNewerVersion(currentVerName, release.cleanVersion)) {
+                } else if (com.apkmanager.app.util.VersionComparator.isNewerVersion(currentVerName, release.cleanVersion)) {
                     SelfUpdateInfo(
                         currentVersionName = currentVerName,
                         currentVersionCode = currentVerCode,
@@ -104,6 +104,8 @@ class SelfUpdateRepository(
 
     /**
      * Downloads and installs the update of APK Manager via ADB, restarting the app afterwards.
+     * Uses detached background execution so Android OS package replacement (which SIGKILLs this process)
+     * allows ADB to complete installation and relaunch the app cleanly.
      */
     suspend fun installSelfUpdate(
         asset: GitHubAsset,
@@ -130,27 +132,32 @@ class SelfUpdateRepository(
                 return@withContext false
             }
 
-            onProgress(UpdateStatus.Installing("Installing update via ADB..."))
+            onProgress(UpdateStatus.Installing("Verifying cryptographic signature..."))
 
-            val installResult = adbRepository.installApk(Uri.fromFile(apkFile))
-
-            when (installResult) {
-                is AdbInstaller.InstallResult.Success -> {
-                    onProgress(UpdateStatus.Success("APK Manager updated successfully!"))
-                    // Relaunch the app via ADB shell am start
-                    try {
-                        adbRepository.executeShell("am start -n com.apkmanager.app/.MainActivity")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to send am start command after update: ${e.message}")
-                    }
-                    true
-                }
-                is AdbInstaller.InstallResult.Failure -> {
-                    onProgress(UpdateStatus.Error("ADB Install Error: ${installResult.error}"))
-                    false
-                }
+            // Verify signature before attempting install
+            if (!verifySignatures(apkFile)) {
+                onProgress(UpdateStatus.Error("Signature mismatch: The downloaded APK does not match current app signing key."))
+                return@withContext false
             }
+
+            onProgress(UpdateStatus.Installing("Staging update to device via ADB..."))
+
+            val remoteTmpApk = "/data/local/tmp/apk_manager_update.apk"
+            adbRepository.pushFile(apkFile, remoteTmpApk)
+
+            // Delete local file immediately so it doesn't leak when SIGKILL happens
+            if (apkFile.exists()) apkFile.delete()
+
+            onProgress(UpdateStatus.Success("Update staged! Restarting APK Manager..."))
+
+            // Detached execution: wait 2s to allow current process to finish output,
+            // then pm install, then relaunch MainActivity, then remove tmp file.
+            val script = "nohup sh -c 'sleep 2; pm install -r -d -t $remoteTmpApk && am start -n com.apkmanager.app/.MainActivity; rm -f $remoteTmpApk' >/dev/null 2>&1 &"
+            adbRepository.executeShell(script)
+
+            true
         } catch (e: Exception) {
+            Log.e(TAG, "Self update error", e)
             onProgress(UpdateStatus.Error(e.message ?: "Self update error"))
             false
         } finally {
@@ -158,24 +165,42 @@ class SelfUpdateRepository(
         }
     }
 
-    private fun isNewerVersion(installed: String, remote: String): Boolean {
-        if (installed.isBlank() || remote.isBlank()) return false
-        val cleanInstalled = installed.trimStart('v', 'V').trim()
-        val cleanRemote = remote.trimStart('v', 'V').trim()
+    private fun verifySignatures(downloadedApk: File): Boolean {
+        return try {
+            val pm = context.packageManager
+            val flags = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                PackageManager.GET_SIGNING_CERTIFICATES
+            } else {
+                @Suppress("DEPRECATION")
+                PackageManager.GET_SIGNATURES
+            }
+            val archiveInfo = pm.getPackageArchiveInfo(downloadedApk.absolutePath, flags) ?: return false
+            val currentInfo = pm.getPackageInfo(context.packageName, flags)
 
-        if (cleanInstalled == cleanRemote) return false
+            val currentSignatures = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                currentInfo.signingInfo?.apkContentsSigners?.map { it.toByteArray() }
+            } else {
+                @Suppress("DEPRECATION")
+                currentInfo.signatures?.map { it.toByteArray() }
+            }
 
-        val installedParts = cleanInstalled.split('.', '-', '_').mapNotNull { it.toIntOrNull() }
-        val remoteParts = cleanRemote.split('.', '-', '_').mapNotNull { it.toIntOrNull() }
+            val archiveSignatures = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                archiveInfo.signingInfo?.apkContentsSigners?.map { it.toByteArray() }
+            } else {
+                @Suppress("DEPRECATION")
+                archiveInfo.signatures?.map { it.toByteArray() }
+            }
 
-        val length = maxOf(installedParts.size, remoteParts.size)
-        for (i in 0 until length) {
-            val inst = installedParts.getOrElse(i) { 0 }
-            val rem = remoteParts.getOrElse(i) { 0 }
-            if (rem > inst) return true
-            if (rem < inst) return false
+            if (currentSignatures.isNullOrEmpty() || archiveSignatures.isNullOrEmpty()) {
+                return false
+            }
+
+            currentSignatures.any { cur ->
+                archiveSignatures.any { arc -> cur.contentEquals(arc) }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Signature verification error", e)
+            false
         }
-
-        return cleanInstalled != cleanRemote
     }
 }

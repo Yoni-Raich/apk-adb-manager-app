@@ -17,6 +17,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -171,83 +173,86 @@ class StoreRepository(
     suspend fun getStoreItems(forceRefresh: Boolean = false): List<StoreAppItem> = coroutineScope {
         val catalog = loadCatalog(forceRefresh)
         val packageManager = context.packageManager
+        val concurrencyLimiter = Semaphore(3)
 
         val deferredList = catalog.map { storeApp ->
             async(Dispatchers.IO) {
-                // Determine install status
-                var isInstalled = false
-                var installedPkg: String? = null
-                var versionName: String? = null
-                var versionCode: Long = 0L
+                concurrencyLimiter.withPermit {
+                    // Determine install status
+                    var isInstalled = false
+                    var installedPkg: String? = null
+                    var versionName: String? = null
+                    var versionCode: Long = 0L
 
-                for (pkgName in storeApp.packageNames) {
-                    try {
-                        val pInfo = packageManager.getPackageInfo(pkgName, 0)
-                        isInstalled = true
-                        installedPkg = pkgName
-                        versionName = pInfo.versionName ?: ""
-                        versionCode = PackageInfoCompat.getLongVersionCode(pInfo)
-                        break
-                    } catch (_: PackageManager.NameNotFoundException) {
-                        // Check via ADB shell if connected
-                        if (adbRepository.isConnected) {
-                            try {
-                                val adbInfo = adbRepository.getPackageInfo(pkgName)
-                                if (adbInfo.isNotEmpty() && !adbInfo["versionName"].isNullOrBlank()) {
-                                    isInstalled = true
-                                    installedPkg = pkgName
-                                    versionName = adbInfo["versionName"] ?: ""
-                                    versionCode = adbInfo["versionCode"]?.toLongOrNull() ?: 0L
-                                    break
-                                }
-                            } catch (_: Exception) {}
-                        }
-                    }
-                }
-
-                // Query GitHub for latest release
-                var latestRelease: GitHubRelease? = null
-                var latestAsset: GitHubAsset? = null
-                var status: UpdateStatus = UpdateStatus.Idle
-                var updateAvailable = false
-
-                val releaseResult = gitHubClient.getLatestRelease(storeApp.githubRepo, forceRefresh)
-                releaseResult.fold(
-                    onSuccess = { release ->
-                        latestRelease = release
-                        latestAsset = gitHubClient.findBestAssetForDevice(release.assets)
-
-                        if (latestAsset == null) {
-                            status = UpdateStatus.Error("No compatible APK found in release ${release.tagName}")
-                        } else if (isInstalled) {
-                            val isNewer = isNewerVersion(versionName ?: "", release.cleanVersion)
-                            if (isNewer) {
-                                updateAvailable = true
-                                status = UpdateStatus.UpdateAvailable(release, latestAsset!!)
-                            } else {
-                                status = UpdateStatus.UpToDate
+                    for (pkgName in storeApp.packageNames) {
+                        try {
+                            val pInfo = packageManager.getPackageInfo(pkgName, 0)
+                            isInstalled = true
+                            installedPkg = pkgName
+                            versionName = pInfo.versionName ?: ""
+                            versionCode = PackageInfoCompat.getLongVersionCode(pInfo)
+                            break
+                        } catch (_: PackageManager.NameNotFoundException) {
+                            // Check via ADB shell if connected
+                            if (adbRepository.isConnected) {
+                                try {
+                                    val adbInfo = adbRepository.getPackageInfo(pkgName)
+                                    if (adbInfo.isNotEmpty() && !adbInfo["versionName"].isNullOrBlank()) {
+                                        isInstalled = true
+                                        installedPkg = pkgName
+                                        versionName = adbInfo["versionName"] ?: ""
+                                        versionCode = adbInfo["versionCode"]?.toLongOrNull() ?: 0L
+                                        break
+                                    }
+                                } catch (_: Exception) {}
                             }
-                        } else {
-                            // App not installed: ready to install
-                            status = UpdateStatus.Idle
                         }
-                    },
-                    onFailure = { error ->
-                        status = UpdateStatus.Error(error.message ?: "Failed to query GitHub")
                     }
-                )
 
-                StoreAppItem(
-                    app = storeApp,
-                    isInstalled = isInstalled,
-                    installedPackage = installedPkg,
-                    installedVersionName = versionName,
-                    installedVersionCode = versionCode,
-                    latestRelease = latestRelease,
-                    latestAsset = latestAsset,
-                    isUpdateAvailable = updateAvailable,
-                    status = status
-                )
+                    // Query GitHub for latest release
+                    var latestRelease: GitHubRelease? = null
+                    var latestAsset: GitHubAsset? = null
+                    var status: UpdateStatus = UpdateStatus.Idle
+                    var updateAvailable = false
+
+                    val releaseResult = gitHubClient.getLatestRelease(storeApp.githubRepo, forceRefresh)
+                    releaseResult.fold(
+                        onSuccess = { release ->
+                            latestRelease = release
+                            latestAsset = gitHubClient.findBestAssetForDevice(release.assets)
+
+                            if (latestAsset == null) {
+                                status = UpdateStatus.Error("No compatible APK found in release ${release.tagName}")
+                            } else if (isInstalled) {
+                                val isNewer = isNewerVersion(versionName ?: "", release.cleanVersion)
+                                if (isNewer) {
+                                    updateAvailable = true
+                                    status = UpdateStatus.UpdateAvailable(release, latestAsset!!)
+                                } else {
+                                    status = UpdateStatus.UpToDate
+                                }
+                            } else {
+                                // App not installed: ready to install
+                                status = UpdateStatus.Idle
+                            }
+                        },
+                        onFailure = { error ->
+                            status = UpdateStatus.Error(error.message ?: "Failed to query GitHub")
+                        }
+                    )
+
+                    StoreAppItem(
+                        app = storeApp,
+                        isInstalled = isInstalled,
+                        installedPackage = installedPkg,
+                        installedVersionName = versionName,
+                        installedVersionCode = versionCode,
+                        latestRelease = latestRelease,
+                        latestAsset = latestAsset,
+                        isUpdateAvailable = updateAvailable,
+                        status = status
+                    )
+                }
             }
         }
 
@@ -314,23 +319,7 @@ class StoreRepository(
      * Compares installed version with latest GitHub release version.
      */
     private fun isNewerVersion(installed: String, remote: String): Boolean {
-        if (installed.isBlank() || remote.isBlank()) return true
-        val cleanInstalled = installed.trimStart('v', 'V').trim()
-        val cleanRemote = remote.trimStart('v', 'V').trim()
-
-        if (cleanInstalled == cleanRemote) return false
-
-        val installedParts = cleanInstalled.split('.', '-', '_').mapNotNull { it.toIntOrNull() }
-        val remoteParts = cleanRemote.split('.', '-', '_').mapNotNull { it.toIntOrNull() }
-
-        val length = maxOf(installedParts.size, remoteParts.size)
-        for (i in 0 until length) {
-            val inst = installedParts.getOrElse(i) { 0 }
-            val rem = remoteParts.getOrElse(i) { 0 }
-            if (rem > inst) return true
-            if (rem < inst) return false
-        }
-
-        return cleanInstalled != cleanRemote
+        if (installed.isBlank()) return true
+        return com.apkmanager.app.util.VersionComparator.isNewerVersion(installed, remote)
     }
 }

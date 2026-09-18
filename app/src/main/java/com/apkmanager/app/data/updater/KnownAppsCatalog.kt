@@ -65,7 +65,7 @@ object KnownAppsCatalog {
 
         // 2. Prefix / flavor match (e.g. com.streamflix.* or dev.androidagent.app.*)
         for (item in catalog) {
-            if (packageName.startsWith(item.packageName) || item.packageName.startsWith(packageName)) {
+            if (packageName == item.packageName || packageName.startsWith("${item.packageName}.")) {
                 return item.copy(packageName = packageName)
             }
         }

@@ -21,6 +21,9 @@ class ApkManagerApplication : Application() {
     lateinit var appUpdateRepository: com.apkmanager.app.repository.AppUpdateRepository
         private set
 
+    lateinit var gitHubClient: com.apkmanager.app.data.updater.GitHubClient
+        private set
+
     lateinit var storeRepository: com.apkmanager.app.repository.StoreRepository
         private set
 
@@ -31,12 +34,23 @@ class ApkManagerApplication : Application() {
         super.onCreate()
 
         configureKadbIdentity()
+        cleanStaleCache()
 
+        gitHubClient = com.apkmanager.app.data.updater.GitHubClient()
         adbRepository = AdbRepository(this)
-        packageRepository = PackageRepository(adbRepository)
-        appUpdateRepository = com.apkmanager.app.repository.AppUpdateRepository(this, adbRepository.getPreferences(), adbRepository)
-        storeRepository = com.apkmanager.app.repository.StoreRepository(this, adbRepository)
-        selfUpdateRepository = com.apkmanager.app.repository.SelfUpdateRepository(this, adbRepository)
+        packageRepository = PackageRepository(adbRepository, this)
+        appUpdateRepository = com.apkmanager.app.repository.AppUpdateRepository(this, adbRepository.getPreferences(), adbRepository, gitHubClient)
+        storeRepository = com.apkmanager.app.repository.StoreRepository(this, adbRepository, gitHubClient)
+        selfUpdateRepository = com.apkmanager.app.repository.SelfUpdateRepository(this, adbRepository, gitHubClient)
+    }
+
+    private fun cleanStaleCache() {
+        try {
+            val subdirs = listOf("apk_temp", "store_downloads", "self_update", "updates")
+            for (sub in subdirs) {
+                File(cacheDir, sub).listFiles()?.forEach { it.delete() }
+            }
+        } catch (_: Exception) {}
     }
 
     private fun configureKadbIdentity() {

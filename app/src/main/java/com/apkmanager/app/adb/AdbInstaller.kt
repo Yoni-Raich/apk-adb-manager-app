@@ -24,20 +24,28 @@ class AdbInstaller(
     }
 
     fun installApk(apkUri: Uri): InstallResult {
-        val tempFile = try {
-            copyToTemp(apkUri, "install.apk")
-        } catch (e: Exception) {
-            return InstallResult.Failure(e.message ?: "Cannot read APK")
+        val isLocalFile = apkUri.scheme == "file" && apkUri.path != null && File(apkUri.path!!).exists()
+        val (targetFile, needsDelete) = if (isLocalFile) {
+            File(apkUri.path!!) to false
+        } else {
+            val file = try {
+                copyToTemp(apkUri, "install.apk")
+            } catch (e: Exception) {
+                return InstallResult.Failure(e.message ?: "Cannot read APK")
+            }
+            file to true
         }
 
         return try {
-            client.install(tempFile, "-r", "-t")
+            client.install(targetFile, "-r", "-t")
             InstallResult.Success()
         } catch (e: Exception) {
             Log.e(TAG, "Installation failed", e)
             InstallResult.Failure(e.message ?: "Unknown error")
         } finally {
-            tempFile.delete()
+            if (needsDelete) {
+                targetFile.delete()
+            }
         }
     }
 

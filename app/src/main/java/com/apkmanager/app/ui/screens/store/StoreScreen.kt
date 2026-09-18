@@ -375,14 +375,38 @@ fun StoreAppCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedButton(
-                        onClick = onInstallOrUpdate,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = isAdbConnected
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Retry Installation")
+                    if (item.isInstalled) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onOpenApp,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Open App")
+                            }
+                            OutlinedButton(
+                                onClick = onInstallOrUpdate,
+                                enabled = isAdbConnected
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Retry")
+                            }
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = onInstallOrUpdate,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = isAdbConnected
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Retry Installation")
+                        }
                     }
                 }
                 else -> {

@@ -344,41 +344,9 @@ class AppUpdateRepository(
     )
 
     private fun extractGitHubRepoFromApk(apkPath: String): String? {
-        return try {
-            val file = File(apkPath)
-            if (!file.exists() || !file.canRead()) return null
-            java.util.zip.ZipFile(file).use { zip ->
-                val dexEntries = zip.entries().asSequence()
-                    .filter { it.name.startsWith("classes") && it.name.endsWith(".dex") }
-                    .take(2)
-                    .toList()
-
-                for (entry in dexEntries) {
-                    zip.getInputStream(entry).use { stream ->
-                        val buffer = ByteArray(65536)
-                        val window = StringBuilder()
-                        var bytesRead: Int
-                        while (stream.read(buffer).also { bytesRead = it } != -1) {
-                            for (i in 0 until bytesRead) {
-                                val c = buffer[i].toInt().toChar()
-                                if (c in 'a'..'z' || c in 'A'..'Z' || c in '0'..'9' || c == '/' || c == '-' || c == '_' || c == '.' || c == ':') {
-                                    window.append(c)
-                                } else {
-                                    if (window.length > 15) {
-                                        val candidate = extractRepoFromCandidate(window.toString())
-                                        if (candidate != null) return candidate
-                                    }
-                                    window.setLength(0)
-                                }
-                            }
-                        }
-                    }
-                }
-                null
-            }
-        } catch (_: Exception) {
-            null
-        }
+        // Raw byte-by-byte DEX scanning causes severe GC freezes and false positives.
+        // Apps are reliably identified via KnownAppsCatalog, StoreCatalog, user-added custom repos, and AndroidManifest metadata.
+        return null
     }
 
     private fun extractRepoFromCandidate(text: String): String? {
@@ -398,7 +366,7 @@ class AppUpdateRepository(
             val parts = after.split('/')
             if (parts.size == 2) {
                 val owner = parts[0]
-                val repo = parts[1]
+                val repo = parts[1].substringBefore('?').substringBefore('#')
                 if (isValidOwnerRepo(owner, repo)) return "$owner/$repo"
             }
         }
@@ -408,8 +376,7 @@ class AppUpdateRepository(
     private fun isValidOwnerRepo(owner: String, repo: String): Boolean {
         if (owner.length < 2 || repo.length < 2) return false
         if (IGNORED_ORGS.contains(owner.lowercase())) return false
-        if (repo.equals("retrofit", ignoreCase = true) || repo.equals("okhttp", ignoreCase = true) || repo.equals("glide", ignoreCase = true)) return false
-        val validChars = Regex("^[a-zA-Z0-9_.-]+$")
+        val validChars = Regex("^[a-zA-Z0-9._-]+$")
         return validChars.matches(owner) && validChars.matches(repo)
     }
 
@@ -418,25 +385,6 @@ class AppUpdateRepository(
      */
     private fun isNewerVersion(installed: String, remote: String): Boolean {
         if (installed == "Not installed") return true
-        if (installed.isBlank() || remote.isBlank()) return false
-
-        val cleanInstalled = installed.trimStart('v', 'V').trim()
-        val cleanRemote = remote.trimStart('v', 'V').trim()
-
-        if (cleanInstalled == cleanRemote) return false
-
-        val installedParts = cleanInstalled.split('.', '-', '_').mapNotNull { it.toIntOrNull() }
-        val remoteParts = cleanRemote.split('.', '-', '_').mapNotNull { it.toIntOrNull() }
-
-        val length = maxOf(installedParts.size, remoteParts.size)
-        for (i in 0 until length) {
-            val inst = installedParts.getOrElse(i) { 0 }
-            val rem = remoteParts.getOrElse(i) { 0 }
-            if (rem > inst) return true
-            if (rem < inst) return false
-        }
-
-        // Fallback: if string representations differ and remote isn't identical
-        return cleanInstalled != cleanRemote
+        return com.apkmanager.app.util.VersionComparator.isNewerVersion(installed, remote)
     }
 }

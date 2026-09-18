@@ -2,6 +2,7 @@ package com.apkmanager.app.data.updater
 
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -60,7 +61,20 @@ class GitHubClient {
 
                 val errorMsg = when (responseCode) {
                     404 -> "Repository not found or has no releases (HTTP 404)"
-                    403 -> "GitHub rate limit exceeded. Try again in a few minutes."
+                    403 -> {
+                        val resetHeader = connection.getHeaderField("x-ratelimit-reset")
+                        if (!resetHeader.isNullOrBlank()) {
+                            try {
+                                val resetEpoch = resetHeader.toLong()
+                                val waitMinutes = maxOf(1, (resetEpoch - System.currentTimeMillis() / 1000) / 60)
+                                "GitHub rate limit exceeded. Resets in ~$waitMinutes min."
+                            } catch (_: Exception) {
+                                "GitHub rate limit exceeded. Try again in a few minutes."
+                            }
+                        } else {
+                            "GitHub rate limit exceeded. Try again in a few minutes."
+                        }
+                    }
                     else -> {
                         val body = connection.errorStream?.bufferedReader()?.use { it.readText() }
                         "GitHub error ($responseCode)${if (!body.isNullOrBlank()) ": $body" else ""}"
@@ -182,6 +196,10 @@ class GitHubClient {
             var redirects = 0
 
             while (redirects < MAX_REDIRECTS) {
+                if (!currentUrl.startsWith("https://")) {
+                    return@withContext Result.failure(Exception("Insecure HTTP redirect rejected"))
+                }
+
                 val url = URL(currentUrl)
                 connection = (url.openConnection() as HttpURLConnection).apply {
                     instanceFollowRedirects = false
@@ -216,20 +234,45 @@ class GitHubClient {
             val validConnection = connection ?: return@withContext Result.failure(Exception("Failed to open connection"))
             val totalBytes = if (asset.size > 0) asset.size else validConnection.contentLengthLong
 
+            if (totalBytes > 0 && destinationFile.usableSpace < totalBytes + 25 * 1024 * 1024L) {
+                return@withContext Result.failure(Exception("Insufficient disk space on device"))
+            }
+
             validConnection.inputStream.use { input ->
                 FileOutputStream(destinationFile).use { output ->
                     val buffer = ByteArray(8192)
                     var downloaded = 0L
                     var bytesRead: Int
+                    var lastProgressTime = 0L
+                    var lastProgressPercent = -1
 
                     while (input.read(buffer).also { bytesRead = it } != -1) {
+                        coroutineContext.ensureActive()
                         output.write(buffer, 0, bytesRead)
                         downloaded += bytesRead
                         val progress = if (totalBytes > 0) downloaded.toFloat() / totalBytes else 0.5f
-                        onProgress(progress, downloaded, totalBytes)
+                        val currentPercent = (progress * 100).toInt()
+                        val now = System.currentTimeMillis()
+                        if (currentPercent != lastProgressPercent && (currentPercent - lastProgressPercent >= 1 || now - lastProgressTime >= 200 || downloaded == totalBytes)) {
+                            lastProgressPercent = currentPercent
+                            lastProgressTime = now
+                            onProgress(progress, downloaded, totalBytes)
+                        }
                     }
                     output.flush()
                 }
+            }
+
+            if (destinationFile.length() < 4) {
+                destinationFile.delete()
+                return@withContext Result.failure(Exception("Downloaded file is empty or truncated"))
+            }
+
+            val header = ByteArray(4)
+            destinationFile.inputStream().use { it.read(header) }
+            if (header[0] != 0x50.toByte() || header[1] != 0x4B.toByte() || header[2] != 0x03.toByte() || header[3] != 0x04.toByte()) {
+                destinationFile.delete()
+                return@withContext Result.failure(Exception("Downloaded file is corrupted or not a valid APK archive"))
             }
 
             Result.success(destinationFile)

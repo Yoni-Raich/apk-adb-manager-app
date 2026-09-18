@@ -48,7 +48,7 @@ fun NavGraph(
 
     NavHost(
         navController = navController,
-        startDestination = if (!incomingApkUris.isNullOrEmpty()) Routes.INSTALLER else Routes.HOME
+        startDestination = Routes.HOME
     ) {
         composable(Routes.HOME) {
             HomeScreen(

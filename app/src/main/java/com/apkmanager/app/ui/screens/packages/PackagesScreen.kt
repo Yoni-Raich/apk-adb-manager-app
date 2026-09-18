@@ -1,8 +1,10 @@
 package com.apkmanager.app.ui.screens.packages
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -10,16 +12,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.apkmanager.app.data.PackageInfo
 import com.apkmanager.app.repository.AdbRepository
 import com.apkmanager.app.repository.PackageRepository
+import com.apkmanager.app.ui.animation.pressScaleEffect
 import com.apkmanager.app.ui.components.PackageListItem
+import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
+import com.apkmanager.app.ui.theme.SecondaryCyan
 
 /**
- * Package Manager screen for browsing and managing installed applications.
+ * Premium Package Manager screen for browsing and inspecting installed applications.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,23 +56,43 @@ fun PackagesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Package Manager") },
+                title = {
+                    Column {
+                        Text(
+                            "Package Manager",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            text = "Installed device applications",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressScaleEffect()) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::toggleSystemApps) {
+                    IconButton(
+                        onClick = viewModel::toggleSystemApps,
+                        modifier = Modifier.pressScaleEffect()
+                    ) {
                         Icon(
                             if (showSystemApps) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (showSystemApps) "Hide system apps" else "Show system apps"
+                            contentDescription = if (showSystemApps) "Hide system apps" else "Show system apps",
+                            tint = if (showSystemApps) SecondaryCyan else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    IconButton(onClick = viewModel::refresh) {
+                    IconButton(onClick = viewModel::refresh, modifier = Modifier.pressScaleEffect()) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -83,8 +109,8 @@ fun PackagesScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search packages...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                placeholder = { Text("Search by name or package...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SecondaryCyan) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.updateSearchQuery("") }) {
@@ -92,36 +118,48 @@ fun PackagesScreen(
                         }
                     }
                 },
+                shape = RoundedCornerShape(16.dp),
                 singleLine = true
             )
 
-            // Package count
-            Text(
-                text = "${packages.size} packages${if (showSystemApps) " (including system)" else ""}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+            // Package count chip
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Loading packages...",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                    Text(
+                        text = "${packages.size} packages${if (showSystemApps) " (all)" else " (user)"}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            if (isLoading && packages.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    repeat(6) {
+                        ShimmerCardPlaceholder(height = 70.dp, shape = RoundedCornerShape(18.dp))
                     }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(packages, key = { it.packageName }) { pkg ->
                         PackageListItem(
@@ -156,11 +194,16 @@ fun PackageDetailDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(22.dp),
         title = {
-            Text(packageInfo.displayName)
+            Text(
+                packageInfo.displayName,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black
+            )
         },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 DetailRow("Package", packageInfo.packageName)
                 DetailRow("Version", packageInfo.versionDisplay)
                 if (packageInfo.apkPath.isNotEmpty()) {
@@ -180,23 +223,31 @@ fun PackageDetailDialog(
                 }
                 if (packageInfo.isSystemApp) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "System application",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "SYSTEM APPLICATION (CANNOT BE UNINSTALLED)",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
             if (!packageInfo.isSystemApp) {
-                TextButton(
+                Button(
                     onClick = onUninstall,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Uninstall")
+                    Text("Uninstall via ADB", fontWeight = FontWeight.Bold)
                 }
             }
         },
@@ -210,15 +261,17 @@ fun PackageDetailDialog(
 
 @Composable
 private fun DetailRow(label: String, value: String) {
-    Column(modifier = Modifier.padding(vertical = 2.dp)) {
+    Column(modifier = Modifier.padding(vertical = 3.dp)) {
         Text(
-            text = label,
+            text = label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontWeight = FontWeight.Bold,
+            color = SecondaryCyan
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodySmall
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

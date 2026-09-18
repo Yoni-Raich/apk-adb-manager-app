@@ -1,5 +1,7 @@
 package com.apkmanager.app.ui.screens.updater
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -24,7 +28,12 @@ import com.apkmanager.app.data.updater.TrackedApp
 import com.apkmanager.app.data.updater.UpdateStatus
 import com.apkmanager.app.repository.AdbRepository
 import com.apkmanager.app.repository.AppUpdateRepository
+import com.apkmanager.app.ui.animation.pressScaleEffect
 import com.apkmanager.app.ui.components.ConnectionStatusBar
+import com.apkmanager.app.ui.components.GlassCard
+import com.apkmanager.app.ui.components.GradientButton
+import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
+import com.apkmanager.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,33 +58,74 @@ fun UpdaterScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("GitHub App Updater") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "GitHub Updater",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Black
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                if (updatableCount > 0) {
+                                    Surface(
+                                        color = TertiaryPink.copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(6.dp),
+                                        border = BorderStroke(1.dp, TertiaryPink.copy(alpha = 0.6f))
+                                    ) {
+                                        Text(
+                                            text = "$updatableCount NEW",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = TertiaryPink,
+                                            fontWeight = FontWeight.Black,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                text = "Automated release tracking for open-source apps",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressScaleEffect()) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        viewModel.loadInstalledApps()
-                        showAddDialog = true
-                    }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add GitHub Repository")
+                    IconButton(
+                        onClick = {
+                            viewModel.loadInstalledApps()
+                            showAddDialog = true
+                        },
+                        modifier = Modifier.pressScaleEffect()
+                    ) {
+                        Icon(Icons.Default.AddCircleOutline, contentDescription = "Add GitHub Repository", tint = SecondaryCyan)
                     }
                     IconButton(
                         onClick = viewModel::checkForUpdates,
-                        enabled = !isRefreshing
+                        enabled = !isRefreshing,
+                        modifier = Modifier.pressScaleEffect()
                     ) {
                         if (isRefreshing) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.dp,
+                                color = SecondaryCyan
                             )
                         } else {
                             Icon(Icons.Default.Refresh, contentDescription = "Check for Updates")
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { paddingValues ->
@@ -88,15 +138,15 @@ fun UpdaterScreen(
         ) {
             // Connection Status
             ConnectionStatusBar(connectionState = connectionState)
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Update All Banner if updates are available
             if (updatableCount > 0) {
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.5.dp, AppGradients.purpleToPink)
                 ) {
                     Row(
                         modifier = Modifier
@@ -105,66 +155,106 @@ fun UpdaterScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "$updatableCount update${if (updatableCount > 1) "s" else ""} available",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "Install silently via ADB",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(AppGradients.purpleToPink),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.RocketLaunch,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "$updatableCount update${if (updatableCount > 1) "s" else ""} available",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Batch silent update via ADB",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                         Button(
                             onClick = viewModel::updateAll,
-                            enabled = connectionState.isConnected
+                            enabled = connectionState.isConnected,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                            modifier = Modifier.pressScaleEffect()
                         ) {
                             Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Update All")
+                            Text("Update All", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            if (trackedApps.isEmpty() && !isRefreshing) {
+            if (isRefreshing && trackedApps.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    repeat(3) {
+                        ShimmerCardPlaceholder(height = 140.dp)
+                    }
+                }
+            } else if (trackedApps.isEmpty()) {
                 Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    Icons.Default.SystemUpdate,
-                    contentDescription = null,
-                    modifier = Modifier.size(72.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.SystemUpdate,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "No GitHub Apps Tracked",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Installed open-source apps from GitHub (e.g. Streamflix, Hey Mike, Termux, NewPipe) will appear here.",
+                    text = "Installed open-source apps from GitHub (Streamflix, Hey Mike, YouTube Downloader, etc.) will appear here automatically.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = {
-                    viewModel.loadInstalledApps()
-                    showAddDialog = true
-                }) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add GitHub Repository")
-                }
+                GradientButton(
+                    text = "Add Custom GitHub Repo",
+                    onClick = {
+                        viewModel.loadInstalledApps()
+                        showAddDialog = true
+                    },
+                    icon = Icons.Default.Add,
+                    gradient = AppGradients.primary,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
                 Spacer(modifier = Modifier.weight(1f))
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     items(trackedApps, key = { it.packageName }) { app ->
@@ -212,34 +302,31 @@ fun TrackedAppItem(
     onEdit: () -> Unit,
     onRemove: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+    GlassCard(
+        shape = RoundedCornerShape(22.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // App Avatar
+                // App Avatar with vibrant initial letter
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(PrimaryPurple.copy(alpha = 0.8f), SecondaryCyan.copy(alpha = 0.6f))
+                            )
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = app.appName.firstOrNull()?.uppercase() ?: "?",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
                     )
                 }
 
@@ -249,7 +336,7 @@ fun TrackedAppItem(
                     Text(
                         text = app.appName,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -262,26 +349,36 @@ fun TrackedAppItem(
                     )
                 }
 
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .pressScaleEffect()
+                ) {
                     Icon(
                         Icons.Default.Edit,
                         contentDescription = "Edit Repository",
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .pressScaleEffect()
+                ) {
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Remove",
                         modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Versions Row
             Row(
@@ -292,45 +389,58 @@ fun TrackedAppItem(
                 Text(
                     text = "Installed: ${app.installedVersionName.ifBlank { "v${app.installedVersionCode}" }}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
                 )
 
                 when (val status = app.status) {
                     is UpdateStatus.UpdateAvailable -> {
                         Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(12.dp)
+                            color = PrimaryPurple.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, PrimaryPurple.copy(alpha = 0.5f))
                         ) {
                             Text(
-                                text = "New: ${status.release.cleanVersion}",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                text = "NEW: ${status.release.cleanVersion}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Black,
+                                color = SecondaryCyan,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
                     }
                     is UpdateStatus.UpToDate -> {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Up to date",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                        Surface(
+                            color = StatusConnected.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, StatusConnected.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = StatusConnected,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "UP TO DATE",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = StatusConnected
+                                )
+                            }
                         }
                     }
                     is UpdateStatus.Checking -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.dp,
+                                color = SecondaryCyan
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
@@ -344,14 +454,16 @@ fun TrackedAppItem(
                         Text(
                             text = status.message,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
+                            color = StatusConnected,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                     is UpdateStatus.Error -> {
                         Text(
                             text = "Check failed",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                     else -> {}
@@ -361,25 +473,24 @@ fun TrackedAppItem(
             // Action / Progress bar
             when (val status = app.status) {
                 is UpdateStatus.UpdateAvailable -> {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
+                    Spacer(modifier = Modifier.height(10.dp))
+                    GradientButton(
+                        text = if (isAdbConnected) "Update via ADB" else "Connect ADB to Update",
                         onClick = onUpdate,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = isAdbConnected
-                    ) {
-                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isAdbConnected) "Update via ADB" else "Connect ADB to Update")
-                    }
+                        enabled = isAdbConnected,
+                        icon = Icons.Default.SystemUpdate,
+                        gradient = AppGradients.purpleToPink
+                    )
                 }
                 is UpdateStatus.Downloading -> {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     LinearProgressIndicator(
                         progress = { status.progress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = SecondaryCyan
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -389,25 +500,27 @@ fun TrackedAppItem(
                     )
                 }
                 is UpdateStatus.Installing -> {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
+                            color = SecondaryCyan
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = status.message,
                             style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
                 is UpdateStatus.Error -> {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = status.message,
                         style = MaterialTheme.typography.bodySmall,
@@ -415,10 +528,13 @@ fun TrackedAppItem(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = onEdit,
-                        modifier = Modifier.fillMaxWidth()
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pressScaleEffect()
                     ) {
                         Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -441,7 +557,8 @@ fun EditRepoDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit GitHub Repository") },
+        shape = RoundedCornerShape(22.dp),
+        title = { Text("Edit GitHub Repository", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -454,6 +571,7 @@ fun EditRepoDialog(
                     onValueChange = { repoInput = it },
                     label = { Text("GitHub Repo") },
                     placeholder = { Text("owner/repo") },
+                    shape = RoundedCornerShape(14.dp),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -467,9 +585,10 @@ fun EditRepoDialog(
                         onConfirm(clean)
                     }
                 },
+                shape = RoundedCornerShape(12.dp),
                 enabled = repoInput.isNotBlank()
             ) {
-                Text("Save")
+                Text("Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -502,7 +621,8 @@ fun AddRepoDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Track GitHub App") },
+        shape = RoundedCornerShape(22.dp),
+        title = { Text("Track GitHub App", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -516,6 +636,7 @@ fun AddRepoDialog(
                 // App Picker Header
                 OutlinedCard(
                     onClick = { showAppPicker = !showAppPicker },
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -544,6 +665,7 @@ fun AddRepoDialog(
                         onValueChange = { searchQuery = it },
                         label = { Text("Search installed apps") },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        shape = RoundedCornerShape(14.dp),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -552,6 +674,7 @@ fun AddRepoDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 180.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                         )
@@ -586,13 +709,13 @@ fun AddRepoDialog(
                                     }
                                     if (app.suggestedRepo.isNotBlank()) {
                                         Surface(
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                            color = SecondaryCyan.copy(alpha = 0.15f),
                                             shape = RoundedCornerShape(4.dp)
                                         ) {
                                             Text(
                                                 text = "Known",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary,
+                                                color = SecondaryCyan,
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                             )
                                         }
@@ -609,6 +732,7 @@ fun AddRepoDialog(
                     onValueChange = { repoInput = it },
                     label = { Text("GitHub Repo") },
                     placeholder = { Text("owner/repo") },
+                    shape = RoundedCornerShape(14.dp),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -617,6 +741,7 @@ fun AddRepoDialog(
                     onValueChange = { packageInput = it },
                     label = { Text("Package Name (optional)") },
                     placeholder = { Text("e.g. com.streamflix") },
+                    shape = RoundedCornerShape(14.dp),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -631,9 +756,10 @@ fun AddRepoDialog(
                         onConfirm(pkg, cleanRepo)
                     }
                 },
+                shape = RoundedCornerShape(12.dp),
                 enabled = repoInput.isNotBlank()
             ) {
-                Text("Track")
+                Text("Track", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

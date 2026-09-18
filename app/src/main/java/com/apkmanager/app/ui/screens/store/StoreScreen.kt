@@ -1,6 +1,10 @@
 package com.apkmanager.app.ui.screens.store
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -18,6 +22,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -29,7 +35,12 @@ import com.apkmanager.app.data.store.StoreAppItem
 import com.apkmanager.app.data.updater.UpdateStatus
 import com.apkmanager.app.repository.AdbRepository
 import com.apkmanager.app.repository.StoreRepository
+import com.apkmanager.app.ui.animation.pressScaleEffect
 import com.apkmanager.app.ui.components.ConnectionStatusBar
+import com.apkmanager.app.ui.components.GlassCard
+import com.apkmanager.app.ui.components.GradientButton
+import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
+import com.apkmanager.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,35 +64,62 @@ fun StoreScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("App Store")
-                        Text(
-                            text = "Curated Open-Source Apps",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "App Store",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Black
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    color = SecondaryCyan.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, SecondaryCyan.copy(alpha = 0.4f))
+                                ) {
+                                    Text(
+                                        text = "CURATED",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = SecondaryCyan,
+                                        fontWeight = FontWeight.Black,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "High quality open-source applications",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressScaleEffect()) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     IconButton(
                         onClick = { viewModel.loadCatalog(forceRefresh = true) },
-                        enabled = !isRefreshing
+                        enabled = !isRefreshing,
+                        modifier = Modifier.pressScaleEffect()
                     ) {
                         if (isRefreshing) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.dp,
+                                color = SecondaryCyan
                             )
                         } else {
                             Icon(Icons.Default.Refresh, contentDescription = "Refresh Store")
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { paddingValues ->
@@ -100,8 +138,14 @@ fun StoreScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = viewModel::updateSearchQuery,
-                placeholder = { Text("Search apps or repositories...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                placeholder = { Text("Search apps or GitHub repositories...") },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = SecondaryCyan
+                    )
+                },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.updateSearchQuery("") }) {
@@ -109,13 +153,14 @@ fun StoreScreen(
                         }
                     }
                 },
+                shape = RoundedCornerShape(16.dp),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
             // Category Chips Row
             if (categories.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -125,7 +170,8 @@ fun StoreScreen(
                     FilterChip(
                         selected = selectedCategory == null,
                         onClick = { viewModel.selectCategory(null) },
-                        label = { Text("All") }
+                        label = { Text("All (${items.size})", fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(12.dp)
                     )
                     categories.forEach { category ->
                         FilterChip(
@@ -133,33 +179,58 @@ fun StoreScreen(
                             onClick = {
                                 viewModel.selectCategory(if (selectedCategory == category) null else category)
                             },
-                            label = { Text(category) }
+                            label = { Text(category, fontWeight = FontWeight.SemiBold) },
+                            shape = RoundedCornerShape(12.dp)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            if (items.isEmpty() && !isRefreshing) {
+            // Content: Shimmer Loading, Empty State, or App Cards
+            if (isRefreshing && items.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    repeat(3) {
+                        ShimmerCardPlaceholder(height = 160.dp)
+                    }
+                }
+            } else if (items.isEmpty()) {
                 Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    Icons.Default.Storefront,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Storefront,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = if (searchQuery.isNotBlank()) "No matching apps found" else "No apps available",
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Try clearing your search query or refreshing",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.weight(1f))
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     items(items, key = { it.app.id }) { item ->
@@ -190,57 +261,68 @@ fun StoreAppCard(
     onInstallOrUpdate: () -> Unit,
     onOpenApp: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+    val categoryColor = when (item.app.category.lowercase()) {
+        "media", "video" -> PrimaryPurple
+        "entertainment" -> TertiaryPink
+        "productivity" -> SecondaryCyan
+        else -> AccentOrange
+    }
+
+    GlassCard(
+        shape = RoundedCornerShape(22.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Header Row: Avatar, Title, Category
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Header Row: Avatar with gradient accent, Title, Category
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .size(50.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(categoryColor.copy(alpha = 0.85f), categoryColor.copy(alpha = 0.35f))
+                            )
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        getCategoryIcon(item.app.icon, item.app.category),
+                        imageVector = getCategoryIcon(item.app.icon, item.app.category),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(
                             text = item.app.name,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Black,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-                            shape = RoundedCornerShape(4.dp)
+                            color = categoryColor.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, categoryColor.copy(alpha = 0.4f))
                         ) {
                             Text(
                                 text = item.app.category,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.Bold,
+                                color = categoryColor,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -255,7 +337,7 @@ fun StoreAppCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Description
             Text(
@@ -278,11 +360,12 @@ fun StoreAppCard(
                     !item.isInstalled -> {
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "Not Installed",
+                                text = "NOT INSTALLED",
                                 style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
@@ -290,27 +373,30 @@ fun StoreAppCard(
                     }
                     item.isUpdateAvailable -> {
                         Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(12.dp)
+                            color = PrimaryPurple.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, PrimaryPurple.copy(alpha = 0.5f))
                         ) {
                             Text(
-                                text = "Update Available",
+                                text = "UPDATE READY",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Black,
+                                color = SecondaryCyan,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
                     }
                     else -> {
                         Surface(
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                            shape = RoundedCornerShape(12.dp)
+                            color = StatusConnected.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, StatusConnected.copy(alpha = 0.3f))
                         ) {
                             Text(
-                                text = "Installed",
+                                text = "INSTALLED",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                fontWeight = FontWeight.Bold,
+                                color = StatusConnected,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
@@ -325,12 +411,13 @@ fun StoreAppCard(
                 }
                 Text(
                     text = versionDetail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Action / Progress section
             when (val status = item.status) {
@@ -340,28 +427,44 @@ fun StoreAppCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = SecondaryCyan
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Downloading: ${(status.progress * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Downloading APK...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${(status.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = SecondaryCyan
+                        )
+                    }
                 }
                 is UpdateStatus.Installing -> {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
+                            color = SecondaryCyan
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = status.message,
                             style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -374,7 +477,7 @@ fun StoreAppCard(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     if (item.isInstalled) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -382,15 +485,20 @@ fun StoreAppCard(
                         ) {
                             OutlinedButton(
                                 onClick = onOpenApp,
-                                modifier = Modifier.weight(1f)
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .pressScaleEffect()
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Open App")
+                                Text("Open")
                             }
                             OutlinedButton(
                                 onClick = onInstallOrUpdate,
-                                enabled = isAdbConnected
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = isAdbConnected,
+                                modifier = Modifier.pressScaleEffect()
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -400,7 +508,10 @@ fun StoreAppCard(
                     } else {
                         OutlinedButton(
                             onClick = onInstallOrUpdate,
-                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .pressScaleEffect(),
                             enabled = isAdbConnected
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -411,48 +522,58 @@ fun StoreAppCard(
                 }
                 else -> {
                     if (!item.isInstalled) {
-                        Button(
+                        GradientButton(
+                            text = if (isAdbConnected) "Install via ADB" else "Connect ADB to Install",
                             onClick = onInstallOrUpdate,
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = isAdbConnected && item.latestAsset != null
-                        ) {
-                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                if (isAdbConnected) "Download & Install via ADB"
-                                else "Connect ADB to Install"
-                            )
-                        }
+                            enabled = isAdbConnected && item.latestAsset != null,
+                            icon = Icons.Default.Download,
+                            gradient = AppGradients.primary
+                        )
                     } else if (item.isUpdateAvailable) {
-                        Button(
+                        GradientButton(
+                            text = if (isAdbConnected) "Update via ADB" else "Connect ADB to Update",
                             onClick = onInstallOrUpdate,
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = isAdbConnected && item.latestAsset != null
-                        ) {
-                            Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                if (isAdbConnected) "Update via ADB"
-                                else "Connect ADB to Update"
-                            )
-                        }
+                            enabled = isAdbConnected && item.latestAsset != null,
+                            icon = Icons.Default.SystemUpdate,
+                            gradient = AppGradients.purpleToPink
+                        )
                     } else {
                         // Installed and up to date
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            OutlinedButton(
+                            Button(
                                 onClick = onOpenApp,
-                                modifier = Modifier.weight(1f)
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .pressScaleEffect()
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(
+                                    Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Open App")
+                                Text(
+                                    "Open App",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                             OutlinedButton(
                                 onClick = onInstallOrUpdate,
-                                enabled = isAdbConnected && item.latestAsset != null
+                                shape = RoundedCornerShape(14.dp),
+                                enabled = isAdbConnected && item.latestAsset != null,
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .pressScaleEffect()
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))

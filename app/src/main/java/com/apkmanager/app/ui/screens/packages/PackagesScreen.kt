@@ -88,7 +88,7 @@ fun PackagesScreen(
                         Icon(
                             if (showSystemApps) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             contentDescription = if (showSystemApps) "Hide system apps" else "Show system apps",
-                            tint = if (showSystemApps) SecondaryCyan else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (showSystemApps) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     IconButton(onClick = viewModel::refresh, modifier = Modifier.pressScaleEffect()) {
@@ -122,7 +122,7 @@ fun PackagesScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text("Search by name or package...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SecondaryCyan) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.updateSearchQuery("") }) {
@@ -286,8 +286,8 @@ private fun DetailRow(label: String, value: String) {
         Text(
             text = label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = SecondaryCyan
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,

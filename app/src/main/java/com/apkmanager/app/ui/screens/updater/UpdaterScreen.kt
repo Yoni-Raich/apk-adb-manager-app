@@ -71,15 +71,15 @@ fun UpdaterScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 if (updatableCount > 0) {
                                     Surface(
-                                        color = TertiaryPink.copy(alpha = 0.2f),
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
                                         shape = RoundedCornerShape(6.dp),
-                                        border = BorderStroke(1.dp, TertiaryPink.copy(alpha = 0.6f))
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                     ) {
                                         Text(
                                             text = "$updatableCount NEW",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = TertiaryPink,
-                                            fontWeight = FontWeight.Black,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontWeight = FontWeight.SemiBold,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
                                     }
@@ -106,7 +106,7 @@ fun UpdaterScreen(
                         },
                         modifier = Modifier.pressScaleEffect()
                     ) {
-                        Icon(Icons.Default.AddCircleOutline, contentDescription = "Add GitHub Repository", tint = SecondaryCyan)
+                        Icon(Icons.Default.AddCircleOutline, contentDescription = "Add GitHub Repository")
                     }
                     IconButton(
                         onClick = viewModel::checkForUpdates,
@@ -117,7 +117,7 @@ fun UpdaterScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp,
-                                color = SecondaryCyan
+                                color = MaterialTheme.colorScheme.primary
                             )
                         } else {
                             Icon(Icons.Default.Refresh, contentDescription = "Check for Updates")
@@ -148,9 +148,9 @@ fun UpdaterScreen(
             if (updatableCount > 0) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(1.5.dp, AppGradients.purpleToPink)
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Row(
                         modifier = Modifier
@@ -164,13 +164,13 @@ fun UpdaterScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(AppGradients.purpleToPink),
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Default.RocketLaunch,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
@@ -192,8 +192,7 @@ fun UpdaterScreen(
                         Button(
                             onClick = viewModel::updateAll,
                             enabled = true,
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.pressScaleEffect()
                         ) {
                             Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -251,7 +250,6 @@ fun UpdaterScreen(
                         showAddDialog = true
                     },
                     icon = Icons.Default.Add,
-                    gradient = AppGradients.primary,
                     modifier = Modifier.padding(horizontal = 32.dp)
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -309,7 +307,7 @@ fun TrackedAppItem(
     onRetry: () -> Unit = {}
 ) {
     GlassCard(
-        shape = RoundedCornerShape(22.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -324,19 +322,15 @@ fun TrackedAppItem(
                         Box(
                             modifier = Modifier
                                 .size(46.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(PrimaryPurple.copy(alpha = 0.8f), SecondaryCyan.copy(alpha = 0.6f))
-                                    )
-                                ),
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = app.appName.firstOrNull()?.uppercase() ?: "?",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -408,24 +402,22 @@ fun TrackedAppItem(
                 when (val status = app.status) {
                     is UpdateStatus.UpdateAvailable -> {
                         Surface(
-                            color = PrimaryPurple.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, PrimaryPurple.copy(alpha = 0.5f))
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
                                 text = "NEW: ${status.release.cleanVersion}",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Black,
-                                color = SecondaryCyan,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
                     }
                     is UpdateStatus.UpToDate -> {
                         Surface(
-                            color = StatusConnected.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, StatusConnected.copy(alpha = 0.3f))
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -452,7 +444,7 @@ fun TrackedAppItem(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(14.dp),
                                 strokeWidth = 2.dp,
-                                color = SecondaryCyan
+                                color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
@@ -493,8 +485,7 @@ fun TrackedAppItem(
                         text = if (isAdbConnected) "Update via ADB" else "Update (Package Installer)",
                         onClick = onUpdate,
                         enabled = true,
-                        icon = Icons.Default.SystemUpdate,
-                        gradient = AppGradients.purpleToPink
+                        icon = Icons.Default.SystemUpdate
                     )
                 }
                 is UpdateStatus.Downloading -> {
@@ -505,7 +496,7 @@ fun TrackedAppItem(
                             .fillMaxWidth()
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
-                        color = SecondaryCyan
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -523,7 +514,7 @@ fun TrackedAppItem(
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = SecondaryCyan
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -740,13 +731,13 @@ fun AddRepoDialog(
                                     }
                                     if (app.suggestedRepo.isNotBlank()) {
                                         Surface(
-                                            color = SecondaryCyan.copy(alpha = 0.15f),
+                                            color = MaterialTheme.colorScheme.surfaceVariant,
                                             shape = RoundedCornerShape(4.dp)
                                         ) {
                                             Text(
                                                 text = "Known",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = SecondaryCyan,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                             )
                                         }

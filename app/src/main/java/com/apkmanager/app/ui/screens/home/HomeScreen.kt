@@ -98,7 +98,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(AppGradients.primary),
+                                .background(MaterialTheme.colorScheme.primary),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -118,15 +118,15 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
-                                    color = PrimaryPurple.copy(alpha = 0.2f),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
                                     shape = RoundedCornerShape(6.dp),
-                                    border = BorderStroke(1.dp, PrimaryPurple.copy(alpha = 0.5f))
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Text(
                                         text = "PRO",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = SecondaryCyan,
-                                        fontWeight = FontWeight.Black,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
@@ -192,7 +192,7 @@ fun HomeScreen(
                             Icon(
                                 imageVector = if (discovered != null) Icons.Default.Sensors else Icons.Default.WifiTetheringError,
                                 contentDescription = null,
-                                tint = if (discovered != null) SecondaryCyan else MaterialTheme.colorScheme.error,
+                                tint = if (discovered != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -273,7 +273,7 @@ fun HomeScreen(
                     title = "Install APK",
                     subtitle = "Local & split files",
                     icon = Icons.Default.InstallMobile,
-                    gradient = AppGradients.purpleToPink,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     enabled = true,
                     onClick = onNavigateToInstaller,
                     modifier = Modifier.weight(1f)
@@ -283,7 +283,7 @@ fun HomeScreen(
                     title = "App Store",
                     subtitle = "Curated GitHub apps",
                     icon = Icons.Default.Storefront,
-                    gradient = AppGradients.accent,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     enabled = true,
                     onClick = onNavigateToStore,
                     modifier = Modifier.weight(1f)
@@ -300,7 +300,7 @@ fun HomeScreen(
                     title = "Packages",
                     subtitle = "Inspect & uninstall",
                     icon = Icons.Default.Apps,
-                    gradient = AppGradients.fire,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     enabled = connectionState.isConnected,
                     onClick = onNavigateToPackages,
                     modifier = Modifier.weight(1f)
@@ -310,7 +310,7 @@ fun HomeScreen(
                     title = "Updater",
                     subtitle = "Track GitHub releases",
                     icon = Icons.Default.Update,
-                    gradient = AppGradients.primary,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     enabled = true,
                     onClick = onNavigateToUpdater,
                     modifier = Modifier.weight(1f)
@@ -330,18 +330,18 @@ private fun DashboardModuleCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    gradient: Brush,
+    iconTint: Color,
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     GlassCard(
-        modifier = modifier.height(138.dp),
+        modifier = modifier.height(132.dp),
+        shape = RoundedCornerShape(16.dp),
         onClick = if (enabled) onClick else null,
         backgroundColor = if (enabled) MaterialTheme.colorScheme.surfaceContainer
-        else MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.5f),
-        borderColor = if (enabled) MaterialTheme.colorScheme.outlineVariant
-        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f),
+        borderColor = MaterialTheme.colorScheme.outlineVariant
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -356,14 +356,18 @@ private fun DashboardModuleCard(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (enabled) gradient else Brush.linearGradient(listOf(Color(0xFF3B4054), Color(0xFF262B3F)))),
+                        .background(
+                            if (enabled) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        tint = if (enabled) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -411,10 +415,10 @@ private fun SelfUpdateCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.5.dp, AppGradients.purpleToPink)
+            .clip(RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier
@@ -426,13 +430,13 @@ private fun SelfUpdateCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(AppGradients.purpleToPink),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.RocketLaunch,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -462,7 +466,7 @@ private fun SelfUpdateCard(
                             .fillMaxWidth()
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
-                        color = PrimaryPurpleLight
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -476,7 +480,7 @@ private fun SelfUpdateCard(
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
-                            color = SecondaryCyan
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -491,8 +495,7 @@ private fun SelfUpdateCard(
                         text = if (isConnected) "Update App Now via ADB" else "Update (Package Installer)",
                         onClick = onUpdateClick,
                         enabled = true,
-                        icon = Icons.Default.Download,
-                        gradient = AppGradients.purpleToPink
+                        icon = Icons.Default.Download
                     )
                 }
             }
@@ -520,11 +523,11 @@ private fun AdbConnectionCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Wifi,
                     contentDescription = null,
-                    tint = SecondaryCyan,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -591,12 +594,11 @@ private fun AdbConnectionCard(
 
                 Button(
                     onClick = onConnect,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp),
-                    enabled = connectPort.isNotEmpty() && !connectionState.isLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple)
+                    enabled = connectPort.isNotEmpty() && !connectionState.isLoading
                 ) {
                     Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))

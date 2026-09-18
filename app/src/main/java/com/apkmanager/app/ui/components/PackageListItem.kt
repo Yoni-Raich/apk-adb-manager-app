@@ -1,30 +1,23 @@
 package com.apkmanager.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Android
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.apkmanager.app.data.PackageInfo
 import com.apkmanager.app.ui.animation.pressScaleEffect
-import com.apkmanager.app.ui.theme.PrimaryPurple
-import com.apkmanager.app.ui.theme.SecondaryCyan
 
 /**
- * A sleek card displaying package information with system app indicator and uninstall action.
+ * Crisp package row: authentic icon, clean hierarchy, muted metadata.
  */
 @Composable
 fun PackageListItem(
@@ -38,36 +31,25 @@ fun PackageListItem(
             .fillMaxWidth()
             .then(
                 if (onClick != null) {
-                    Modifier.pressScaleEffect(targetScale = 0.98f, onClick = onClick)
+                    Modifier.pressScaleEffect(targetScale = 0.99f, onClick = onClick)
                 } else Modifier
             ),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (packageInfo.isSystemApp) MaterialTheme.colorScheme.surfaceContainerHighest
-                        else PrimaryPurple.copy(alpha = 0.2f)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                com.apkmanager.app.util.AppIconImage(
-                    packageName = packageInfo.packageName,
-                    modifier = Modifier.size(32.dp),
-                    fallbackIcon = Icons.Default.Android,
-                    tint = if (packageInfo.isSystemApp) MaterialTheme.colorScheme.onSurfaceVariant else SecondaryCyan
-                )
-            }
+            com.apkmanager.app.util.AppIconImage(
+                packageName = packageInfo.packageName,
+                modifier = Modifier.size(42.dp),
+                fallbackIcon = Icons.Default.Android,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -75,8 +57,8 @@ fun PackageListItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = packageInfo.displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
@@ -88,18 +70,18 @@ fun PackageListItem(
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                text = "SYS",
+                                text = "SYSTEM",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Black,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
                     }
                 }
                 Text(
                     text = packageInfo.packageName,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -108,21 +90,17 @@ fun PackageListItem(
                     Text(
                         text = "v${packageInfo.versionDisplay}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        fontWeight = FontWeight.SemiBold
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )
                 }
             }
 
             if (onUninstall != null && !packageInfo.isSystemApp) {
-                IconButton(
-                    onClick = onUninstall,
-                    modifier = Modifier.pressScaleEffect()
-                ) {
+                IconButton(onClick = onUninstall) {
                     Icon(
-                        imageVector = Icons.Default.Delete,
+                        imageVector = Icons.Default.DeleteOutline,
                         contentDescription = "Uninstall",
-                        tint = MaterialTheme.colorScheme.error
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

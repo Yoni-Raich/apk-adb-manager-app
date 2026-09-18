@@ -1,21 +1,14 @@
 package com.apkmanager.app.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -24,20 +17,19 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.apkmanager.app.ui.animation.pressScaleEffect
 import com.apkmanager.app.ui.animation.shimmerEffect
-import com.apkmanager.app.ui.theme.AppGradients
-import com.apkmanager.app.ui.theme.PrimaryPurple
-import com.apkmanager.app.ui.theme.SecondaryCyan
 
 /**
- * Premium glassmorphic card with subtle translucent border and elevated dark surface.
+ * Clean, production-grade card: solid obsidian surface, crisp 1dp border,
+ * optional barely-there tonal wash. No neon blur, no glow.
  */
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    shape: RoundedCornerShape = RoundedCornerShape(20.dp),
+    shape: RoundedCornerShape = RoundedCornerShape(16.dp),
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceContainer,
     borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
     borderWidth: Dp = 1.dp,
+    useSubtleWash: Boolean = false,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -46,27 +38,52 @@ fun GlassCard(
             .fillMaxWidth()
             .then(
                 if (onClick != null) {
-                    Modifier.pressScaleEffect(targetScale = 0.98f, onClick = onClick)
+                    Modifier.pressScaleEffect(targetScale = 0.985f, onClick = onClick)
                 } else Modifier
             ),
         shape = shape,
         color = backgroundColor,
         border = BorderStroke(borderWidth, borderColor),
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp
+        tonalElevation = 1.dp,
+        shadowElevation = 0.dp
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .animateContentSize(),
-            content = content
-        )
+        if (useSubtleWash) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.025f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .animateContentSize(),
+                    content = content
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .animateContentSize(),
+                content = content
+            )
+        }
     }
 }
 
 /**
- * Gradient CTA button with modern rounded styling and tactile press scale animation.
+ * Sleek solid primary button — confident indigo, 12dp corners, M3 ripple.
+ * The legacy `gradient` param is accepted for source-compat but intentionally
+ * ignored so old call-sites render flat instead of neon.
  */
 @Composable
 fun GradientButton(
@@ -74,79 +91,167 @@ fun GradientButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-    gradient: Brush = AppGradients.primary,
+    gradient: Brush? = null,
     enabled: Boolean = true,
     contentColor: Color = Color.White
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    PrimaryButton(
+        text = text,
+        onClick = onClick,
+        modifier = modifier,
+        icon = icon,
+        enabled = enabled
+    )
+}
 
-    Surface(
+@Composable
+fun PrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    enabled: Boolean = true
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
-            .clip(shape)
-            .then(
-                if (enabled) {
-                    Modifier.pressScaleEffect(targetScale = 0.96f, onClick = onClick)
-                } else Modifier
-            ),
-        shape = shape,
-        color = Color.Transparent
+            .height(50.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = Color.White,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp,
+            disabledElevation = 0.dp
+        )
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    if (enabled) gradient
-                    else Brush.linearGradient(listOf(Color(0xFF33384F), Color(0xFF262B3F)))
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            ) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = if (enabled) contentColor else Color.White.copy(alpha = 0.4f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (enabled) contentColor else Color.White.copy(alpha = 0.4f)
-                )
-            }
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
         }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+fun SecondaryOutlinedButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    isDestructive: Boolean = false
+) {
+    val content = if (isDestructive) MaterialTheme.colorScheme.error
+    else MaterialTheme.colorScheme.onSurface
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(
+            1.dp,
+            if (isDestructive) MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+            else MaterialTheme.colorScheme.outlineVariant
+        ),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = content
+        )
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+fun TonalActionButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    enabled: Boolean = true
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        elevation = ButtonDefaults.filledTonalButtonElevation(0.dp, 0.dp)
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
 /**
- * Skeleton card placeholder for loading screens with active shimmer sweep.
+ * Subtle skeleton placeholder — flat shimmer, no glow.
  */
 @Composable
 fun ShimmerCardPlaceholder(
-    height: Dp = 100.dp,
-    shape: RoundedCornerShape = RoundedCornerShape(20.dp),
+    height: Dp = 96.dp,
+    shape: RoundedCornerShape = RoundedCornerShape(16.dp),
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .clip(shape)
             .shimmerEffect()
-    )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = shape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ) {}
+    }
 }
 
 /**
- * Hero Banner Header with gradient surface and backdrop glow.
+ * Clean section header (Linear-style): bold title, muted subtitle,
+ * optional small actions. Legacy badge params kept for compat but rendered muted.
  */
 @Composable
 fun GradientHeroHeader(
@@ -154,61 +259,52 @@ fun GradientHeroHeader(
     subtitle: String,
     modifier: Modifier = Modifier,
     badgeText: String? = null,
-    badgeColor: Color = SecondaryCyan,
+    badgeColor: Color = Color.Unspecified,
     actions: @Composable (RowScope.() -> Unit)? = null
 ) {
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        PrimaryPurple.copy(alpha = 0.28f),
-                        Color.Transparent
-                    )
-                )
-            )
-            .padding(horizontal = 20.dp, vertical = 20.dp)
+            .padding(horizontal = 4.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                if (badgeText != null) {
-                    Surface(
-                        color = badgeColor.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f)),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    ) {
-                        Text(
-                            text = badgeText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = badgeColor,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
+        Column(modifier = Modifier.weight(1f)) {
+            if (badgeText != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(6.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Text(
+                        text = badgeText.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
                 }
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            if (actions != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    actions()
-                }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (actions != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                actions()
             }
         }
     }

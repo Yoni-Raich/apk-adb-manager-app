@@ -17,16 +17,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.apkmanager.app.data.ConnectionState
 import com.apkmanager.app.ui.animation.rememberPulseAnimation
 import com.apkmanager.app.ui.theme.*
 
 /**
- * A sleek status pill that displays the current ADB connection state.
- * Features an animated pulsing indicator ring, status glow, and clean typography.
+ * Minimalist ADB status pill: solid dot, muted tonal surface,
+ * monospace state text, tap-to-verify. Shizuku / Linear style.
  */
 @Composable
 fun ConnectionStatusBar(
@@ -41,20 +42,31 @@ fun ConnectionStatusBar(
             is ConnectionState.Error -> StatusError
             is ConnectionState.Disconnected -> StatusDisconnected
         },
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = tween(durationMillis = 250),
         label = "status_color"
     )
 
-    val isPending = connectionState is ConnectionState.Connecting || connectionState is ConnectionState.Pairing
-    val pulseScale = if (isPending) rememberPulseAnimation(min = 0.9f, max = 1.35f, durationMillis = 700) else 1f
+    val isPending = connectionState is ConnectionState.Connecting ||
+        connectionState is ConnectionState.Pairing
+    val pulseScale = if (isPending) {
+        rememberPulseAnimation(min = 1f, max = 1.6f, durationMillis = 900)
+    } else 1f
+
+    val stateLabel = when (connectionState) {
+        is ConnectionState.Connected -> "CONNECTED"
+        is ConnectionState.Connecting -> "CONNECTING"
+        is ConnectionState.Pairing -> "PAIRING"
+        is ConnectionState.Error -> "ERROR"
+        is ConnectionState.Disconnected -> "DISCONNECTED"
+    }
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = indicatorColor.copy(alpha = 0.08f),
-        border = BorderStroke(1.dp, indicatorColor.copy(alpha = 0.25f))
+            .padding(horizontal = 0.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier
@@ -63,28 +75,26 @@ fun ConnectionStatusBar(
                     if (onVerifyClick != null) Modifier.clickable(onClick = onVerifyClick)
                     else Modifier
                 )
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Status dot with optional soft halo while pending
             Box(
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Outer glow pulse ring
-                if (isPending || connectionState is ConnectionState.Connected) {
+                if (isPending) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .scale(pulseScale)
                             .clip(CircleShape)
-                            .background(indicatorColor.copy(alpha = if (isPending) 0.35f else 0.2f))
+                            .background(indicatorColor.copy(alpha = 0.22f))
                     )
                 }
-
-                // Core solid dot
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
+                        .size(8.dp)
                         .clip(CircleShape)
                         .background(indicatorColor)
                 )
@@ -92,41 +102,25 @@ fun ConnectionStatusBar(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = connectionState.statusText,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                if (onVerifyClick != null && !connectionState.isConnected) {
-                    Text(
-                        text = "Tap to verify / reconnect",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            Text(
+                text = stateLabel,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Medium,
+                fontSize = 12.sp,
+                letterSpacing = 0.8.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
 
-            // Connection state badge
-            Surface(
-                color = indicatorColor.copy(alpha = 0.18f),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = when (connectionState) {
-                        is ConnectionState.Connected -> "ONLINE"
-                        is ConnectionState.Connecting -> "CONNECTING"
-                        is ConnectionState.Pairing -> "PAIRING"
-                        is ConnectionState.Error -> "ALERT"
-                        is ConnectionState.Disconnected -> "OFFLINE"
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Black,
-                    color = indicatorColor,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                )
-            }
+            Text(
+                text = if (connectionState.isConnected) "TAP TO VERIFY"
+                else "TAP TO RETRY",
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Normal,
+                fontSize = 11.sp,
+                letterSpacing = 0.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

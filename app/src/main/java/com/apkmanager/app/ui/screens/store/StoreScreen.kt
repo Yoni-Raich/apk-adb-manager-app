@@ -74,15 +74,15 @@ fun StoreScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
-                                color = AccentOrange.copy(alpha = 0.2f),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(6.dp),
-                                border = BorderStroke(1.dp, AccentOrange.copy(alpha = 0.5f))
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                             ) {
                                 Text(
                                     text = "GITHUB",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = AccentOrange,
-                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
@@ -109,7 +109,7 @@ fun StoreScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp,
-                                color = SecondaryCyan
+                                color = MaterialTheme.colorScheme.primary
                             )
                         } else {
                             Icon(Icons.Default.Refresh, contentDescription = "Refresh Store")
@@ -145,7 +145,7 @@ fun StoreScreen(
                     Icon(
                         Icons.Default.Search,
                         contentDescription = null,
-                        tint = SecondaryCyan
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 trailingIcon = {
@@ -263,15 +263,10 @@ fun StoreAppCard(
     onInstallOrUpdate: () -> Unit,
     onOpenApp: () -> Unit
 ) {
-    val categoryColor = when (item.app.category.lowercase()) {
-        "media", "video" -> PrimaryPurple
-        "entertainment" -> TertiaryPink
-        "productivity" -> SecondaryCyan
-        else -> AccentOrange
-    }
+    val categoryColor = MaterialTheme.colorScheme.primary
 
     GlassCard(
-        shape = RoundedCornerShape(22.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Header Row: Avatar with gradient accent, Title, Category
@@ -288,18 +283,14 @@ fun StoreAppCard(
                             modifier = Modifier
                                 .size(50.dp)
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(categoryColor.copy(alpha = 0.85f), categoryColor.copy(alpha = 0.35f))
-                                    )
-                                ),
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = getCategoryIcon(item.app.icon, item.app.category),
                                 contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(26.dp)
                             )
                         }
                     }
@@ -323,15 +314,15 @@ fun StoreAppCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
-                            color = categoryColor.copy(alpha = 0.15f),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, categoryColor.copy(alpha = 0.4f))
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
                             Text(
                                 text = item.app.category,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = categoryColor,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -382,29 +373,27 @@ fun StoreAppCard(
                     }
                     item.isUpdateAvailable -> {
                         Surface(
-                            color = PrimaryPurple.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, PrimaryPurple.copy(alpha = 0.5f))
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "UPDATE READY",
+                                text = "UPDATE AVAILABLE",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Black,
-                                color = SecondaryCyan,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
                     }
                     else -> {
                         Surface(
-                            color = StatusConnected.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, StatusConnected.copy(alpha = 0.3f))
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
                                 text = "INSTALLED",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Medium,
                                 color = StatusConnected,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
@@ -437,7 +426,7 @@ fun StoreAppCard(
                             .fillMaxWidth()
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
-                        color = SecondaryCyan
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
@@ -452,8 +441,8 @@ fun StoreAppCard(
                         Text(
                             text = "${(status.progress * 100).toInt()}%",
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = SecondaryCyan
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -467,7 +456,7 @@ fun StoreAppCard(
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = SecondaryCyan
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
@@ -535,16 +524,14 @@ fun StoreAppCard(
                             text = if (isAdbConnected) "Install via ADB" else "Install (Package Installer)",
                             onClick = onInstallOrUpdate,
                             enabled = item.latestAsset != null,
-                            icon = Icons.Default.Download,
-                            gradient = AppGradients.primary
+                            icon = Icons.Default.Download
                         )
                     } else if (item.isUpdateAvailable) {
                         GradientButton(
                             text = if (isAdbConnected) "Update via ADB" else "Update (Package Installer)",
                             onClick = onInstallOrUpdate,
                             enabled = item.latestAsset != null,
-                            icon = Icons.Default.SystemUpdate,
-                            gradient = AppGradients.purpleToPink
+                            icon = Icons.Default.SystemUpdate
                         )
                     } else {
                         // Installed and up to date

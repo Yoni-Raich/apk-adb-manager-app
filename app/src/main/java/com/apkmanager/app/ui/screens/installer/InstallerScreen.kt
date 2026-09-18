@@ -144,9 +144,9 @@ fun InstallerScreen(
                                 arrayOf("application/vnd.android.package-archive", "application/octet-stream")
                             )
                         },
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-                    border = BorderStroke(1.5.dp, PrimaryPurple.copy(alpha = 0.4f))
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Column(
                         modifier = Modifier
@@ -156,16 +156,16 @@ fun InstallerScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(80.dp)
+                                .size(72.dp)
                                 .clip(CircleShape)
-                                .background(AppGradients.purpleToPink),
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.FolderZip,
                                 contentDescription = null,
-                                modifier = Modifier.size(42.dp),
-                                tint = Color.White
+                                modifier = Modifier.size(36.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
@@ -188,21 +188,21 @@ fun InstallerScreen(
                         Spacer(modifier = Modifier.height(24.dp))
 
                         Surface(
-                            color = PrimaryPurple.copy(alpha = 0.15f),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, PrimaryPurple.copy(alpha = 0.3f))
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.UploadFile, contentDescription = null, tint = SecondaryCyan, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.UploadFile, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     "Tap anywhere to browse files",
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = SecondaryCyan
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -223,7 +223,7 @@ fun InstallerScreen(
                                 Icon(
                                     Icons.Default.CheckCircleOutline,
                                     contentDescription = null,
-                                    tint = SecondaryCyan,
+                                    tint = StatusConnected,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -270,7 +270,7 @@ fun InstallerScreen(
                                             uri = apk.uri,
                                             modifier = Modifier.size(28.dp),
                                             fallbackIcon = Icons.AutoMirrored.Filled.InsertDriveFile,
-                                            tint = PrimaryPurpleLight
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Column(modifier = Modifier.weight(1f)) {
@@ -308,8 +308,7 @@ fun InstallerScreen(
                             text = if (connectionState.isConnected) "Install via ADB (Silent)" else "Install (Package Installer)",
                             onClick = { viewModel.install(context) },
                             enabled = selectedApks.isNotEmpty(),
-                            icon = Icons.Default.InstallMobile,
-                            gradient = AppGradients.purpleToPink
+                            icon = Icons.Default.InstallMobile
                         )
 
                         if (!connectionState.isConnected) {
@@ -354,8 +353,7 @@ fun InstallerScreen(
                         GradientButton(
                             text = "Install Another File",
                             onClick = viewModel::reset,
-                            icon = Icons.Default.Refresh,
-                            gradient = AppGradients.primary
+                            icon = Icons.Default.Refresh
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         OutlinedButton(

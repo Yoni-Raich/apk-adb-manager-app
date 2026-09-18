@@ -1,16 +1,11 @@
 package com.apkmanager.app.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
@@ -21,23 +16,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.apkmanager.app.ui.navigation.Routes
-import com.apkmanager.app.ui.theme.AppGradients
-import com.apkmanager.app.ui.theme.PrimaryPurple
-import com.apkmanager.app.ui.theme.SecondaryCyan
 
 data class NavItem(
     val route: String,
@@ -53,7 +43,8 @@ val NAV_ITEMS = listOf(
 )
 
 /**
- * High-end floating bottom navigation bar with animated pill selector and glow.
+ * Clean M3-style bottom bar: flat obsidian surface, crisp 1dp top border,
+ * tonal pill indicator on the selected tab. No floating glow, no gradients.
  */
 @Composable
 fun AnimatedNavBar(
@@ -62,23 +53,17 @@ fun AnimatedNavBar(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
-            .navigationBarsPadding(),
-        shape = RoundedCornerShape(26.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        ),
-        shadowElevation = 16.dp,
-        tonalElevation = 6.dp
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -106,68 +91,46 @@ private fun NavBarItemView(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.05f else 0.95f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "nav_item_scale"
+    val iconTint by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(180),
+        label = "nav_tint"
     )
 
-    val contentColor by animateColorAsState(
-        targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-        animationSpec = tween(durationMillis = 200),
-        label = "nav_content_color"
-    )
-
-    Box(
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(RoundedCornerShape(20.dp))
-            .then(
-                if (isSelected) {
-                    Modifier.background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                PrimaryPurple.copy(alpha = 0.85f),
-                                SecondaryCyan.copy(alpha = 0.75f)
-                            )
-                        )
-                    )
-                } else Modifier
-            )
+            .clip(RoundedCornerShape(12.dp))
             .clickable(
                 interactionSource = interactionSource,
-                indication = null,
+                indication = ripple(bounded = true),
                 onClick = onClick
             )
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 14.dp, vertical = 6.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = if (isSelected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.0f)
         ) {
             Icon(
                 imageVector = item.icon,
                 contentDescription = item.title,
-                tint = contentColor,
-                modifier = Modifier.size(22.dp)
+                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                else iconTint,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 5.dp)
+                    .size(20.dp)
             )
-            if (isSelected) {
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = item.title,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    maxLines = 1
-                )
-            }
         }
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = item.title,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (isSelected) MaterialTheme.colorScheme.onSurface
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

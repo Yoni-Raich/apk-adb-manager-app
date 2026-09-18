@@ -26,17 +26,15 @@ fun PackageListItem(
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(
-                if (onClick != null) {
-                    Modifier.pressScaleEffect(targetScale = 0.99f, onClick = onClick)
-                } else Modifier
-            ),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ElevatedCard(
+        onClick = onClick ?: {},
+        enabled = onClick != null,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier
@@ -44,21 +42,36 @@ fun PackageListItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            com.apkmanager.app.util.AppIconImage(
-                packageName = packageInfo.packageName,
-                modifier = Modifier.size(42.dp),
-                fallbackIcon = Icons.Default.Android,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                tonalElevation = 1.dp
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    com.apkmanager.app.util.AppIconImage(
+                        packageName = packageInfo.packageName,
+                        modifier = Modifier.size(40.dp),
+                        fallbackIcon = Icons.Default.Android,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = packageInfo.displayName,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
@@ -66,8 +79,8 @@ fun PackageListItem(
                     if (packageInfo.isSystemApp) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(4.dp)
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
                                 text = "SYSTEM",
@@ -79,6 +92,7 @@ fun PackageListItem(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = packageInfo.packageName,
                     style = MaterialTheme.typography.bodySmall,
@@ -87,6 +101,7 @@ fun PackageListItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 if (packageInfo.versionName.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = "v${packageInfo.versionDisplay}",
                         style = MaterialTheme.typography.labelSmall,

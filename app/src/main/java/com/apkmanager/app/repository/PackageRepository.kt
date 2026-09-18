@@ -28,50 +28,78 @@ class PackageRepository(
     suspend fun refresh(includeSystemApps: Boolean = false) {
         _isLoading.value = true
         try {
-            if (!adbRepository.isConnected) {
-                cachedPackages = emptyList()
-                _packages.value = emptyList()
-                return
-            }
+            val pm = context?.packageManager
+            val packages = if (adbRepository.isConnected) {
+                val entries = try {
+                    adbRepository.listPackagesDetailed(includeSystemApps)
+                } catch (e: Exception) {
+                    android.util.Log.e("PackageRepository", "Failed to list packages via ADB", e)
+                    emptyList()
+                }
 
-            val entries = try {
-                adbRepository.listPackagesDetailed(includeSystemApps)
-            } catch (e: Exception) {
-                android.util.Log.e("PackageRepository", "Failed to list packages via ADB", e)
+                entries.map { entry ->
+                    val isSystem = entry.apkPath.let { path ->
+                        path.startsWith("/system") ||
+                        path.startsWith("/vendor") ||
+                        path.startsWith("/product") ||
+                        path.startsWith("/system_ext") ||
+                        path.startsWith("/apex") ||
+                        path.startsWith("/odm") ||
+                        path.startsWith("/oem")
+                    }
+
+                    // Rapid in-process resolution from local PackageManager
+                    val localInfo = try {
+                        pm?.getPackageInfo(entry.packageName, 0)
+                    } catch (_: Exception) {
+                        null
+                    }
+
+                    PackageInfo(
+                        packageName = entry.packageName,
+                        versionName = localInfo?.versionName ?: "",
+                        versionCode = localInfo?.let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it).toString() } ?: "",
+                        apkPath = entry.apkPath,
+                        installerPackage = entry.installer,
+                        firstInstallTime = localInfo?.firstInstallTime?.toString() ?: "",
+                        lastUpdateTime = localInfo?.lastUpdateTime?.toString() ?: "",
+                        targetSdk = localInfo?.applicationInfo?.targetSdkVersion?.toString() ?: "",
+                        isSystemApp = isSystem
+                    )
+                }
+            } else if (pm != null) {
+                val localList = try {
+                    pm.getInstalledPackages(0)
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                localList.mapNotNull { pInfo ->
+                    val appInfo = pInfo.applicationInfo
+                    val isSystem = (appInfo?.flags?.let { it and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0 }) == true
+                    if (!includeSystemApps && isSystem) return@mapNotNull null
+                    PackageInfo(
+                        packageName = pInfo.packageName,
+                        versionName = pInfo.versionName ?: "",
+                        versionCode = androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(pInfo).toString(),
+                        apkPath = appInfo?.sourceDir ?: "",
+                        installerPackage = try {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                                pm.getInstallSourceInfo(pInfo.packageName).installingPackageName ?: ""
+                            } else {
+                                @Suppress("DEPRECATION")
+                                pm.getInstallerPackageName(pInfo.packageName) ?: ""
+                            }
+                        } catch (_: Exception) { "" },
+                        firstInstallTime = pInfo.firstInstallTime.toString(),
+                        lastUpdateTime = pInfo.lastUpdateTime.toString(),
+                        targetSdk = appInfo?.targetSdkVersion?.toString() ?: "",
+                        isSystemApp = isSystem
+                    )
+                }
+            } else {
                 emptyList()
             }
 
-            val pm = context?.packageManager
-            val packages = entries.map { entry ->
-                val isSystem = entry.apkPath.let { path ->
-                    path.startsWith("/system") ||
-                    path.startsWith("/vendor") ||
-                    path.startsWith("/product") ||
-                    path.startsWith("/system_ext") ||
-                    path.startsWith("/apex") ||
-                    path.startsWith("/odm") ||
-                    path.startsWith("/oem")
-                }
-
-                // Rapid in-process resolution from local PackageManager
-                val localInfo = try {
-                    pm?.getPackageInfo(entry.packageName, 0)
-                } catch (_: Exception) {
-                    null
-                }
-
-                PackageInfo(
-                    packageName = entry.packageName,
-                    versionName = localInfo?.versionName ?: "",
-                    versionCode = localInfo?.let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it).toString() } ?: "",
-                    apkPath = entry.apkPath,
-                    installerPackage = entry.installer,
-                    firstInstallTime = localInfo?.firstInstallTime?.toString() ?: "",
-                    lastUpdateTime = localInfo?.lastUpdateTime?.toString() ?: "",
-                    targetSdk = localInfo?.applicationInfo?.targetSdkVersion?.toString() ?: "",
-                    isSystemApp = isSystem
-                )
-            }
             cachedPackages = packages
             _packages.value = packages
         } finally {
@@ -98,21 +126,43 @@ class PackageRepository(
      */
     suspend fun getPackageDetails(packageName: String): PackageInfo? {
         return cachedPackages.find { it.packageName == packageName }
-            ?: try {
-                val info = adbRepository.getPackageInfo(packageName)
-                val apkPath = adbRepository.getApkPath(packageName)
-                PackageInfo(
-                    packageName = packageName,
-                    versionName = info["versionName"] ?: "",
-                    versionCode = info["versionCode"] ?: "",
-                    apkPath = apkPath ?: info["codePath"] ?: "",
-                    installerPackage = info["installerPackageName"] ?: "",
-                    firstInstallTime = info["firstInstallTime"] ?: "",
-                    lastUpdateTime = info["lastUpdateTime"] ?: "",
-                    targetSdk = info["targetSdk"] ?: ""
-                )
-            } catch (e: Exception) {
-                null
+            ?: run {
+                val pm = context?.packageManager
+                val local = try { pm?.getPackageInfo(packageName, 0) } catch (_: Exception) { null }
+                if (local != null) {
+                    val appInfo = local.applicationInfo
+                    val isSystem = (appInfo?.flags?.let { it and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0 }) == true
+                    PackageInfo(
+                        packageName = packageName,
+                        versionName = local.versionName ?: "",
+                        versionCode = androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(local).toString(),
+                        apkPath = appInfo?.sourceDir ?: "",
+                        installerPackage = "",
+                        firstInstallTime = local.firstInstallTime.toString(),
+                        lastUpdateTime = local.lastUpdateTime.toString(),
+                        targetSdk = appInfo?.targetSdkVersion?.toString() ?: "",
+                        isSystemApp = isSystem
+                    )
+                } else if (adbRepository.isConnected) {
+                    try {
+                        val info = adbRepository.getPackageInfo(packageName)
+                        val apkPath = adbRepository.getApkPath(packageName)
+                        PackageInfo(
+                            packageName = packageName,
+                            versionName = info["versionName"] ?: "",
+                            versionCode = info["versionCode"] ?: "",
+                            apkPath = apkPath ?: info["codePath"] ?: "",
+                            installerPackage = info["installerPackageName"] ?: "",
+                            firstInstallTime = info["firstInstallTime"] ?: "",
+                            lastUpdateTime = info["lastUpdateTime"] ?: "",
+                            targetSdk = info["targetSdk"] ?: ""
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                } else {
+                    null
+                }
             }
     }
 }

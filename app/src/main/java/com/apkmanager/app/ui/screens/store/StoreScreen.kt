@@ -6,10 +6,12 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,8 +39,9 @@ import com.apkmanager.app.repository.AdbRepository
 import com.apkmanager.app.repository.StoreRepository
 import com.apkmanager.app.ui.animation.pressScaleEffect
 import com.apkmanager.app.ui.components.ConnectionStatusBar
-import com.apkmanager.app.ui.components.GlassCard
-import com.apkmanager.app.ui.components.GradientButton
+import com.apkmanager.app.ui.components.GooglePlayFilterChips
+import com.apkmanager.app.ui.components.GooglePlaySearchBar
+import com.apkmanager.app.ui.components.GooglePlaySectionHeader
 import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
 import com.apkmanager.app.ui.theme.*
 import com.apkmanager.app.util.AppIconImage
@@ -61,66 +64,13 @@ fun StoreScreen(
     val connectionState by adbRepository.connectionState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    val categoryChipList = remember(categories) {
+        listOf("All") + categories
+    }
+    val currentChipSelection = selectedCategory ?: "All"
+
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "App Store",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Black
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(6.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                            ) {
-                                Text(
-                                    text = "GITHUB",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        Text(
-                            text = "Curated open-source Android apps",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressScaleEffect()) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.loadCatalog(forceRefresh = true) },
-                        enabled = !isRefreshing,
-                        modifier = Modifier.pressScaleEffect()
-                    ) {
-                        if (isRefreshing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Store")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        }
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -129,94 +79,103 @@ fun StoreScreen(
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Connection Status
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Google Play Signature Search Capsule with back button and refresh
+            GooglePlaySearchBar(
+                query = searchQuery,
+                placeholder = "Search apps & repositories...",
+                onQueryChange = viewModel::updateSearchQuery,
+                navigationIcon = {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                trailingContent = {
+                    IconButton(
+                        onClick = { viewModel.loadCatalog(forceRefresh = true) },
+                        enabled = !isRefreshing,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh catalog",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Google Play Category Filter Chips
+            if (categories.isNotEmpty()) {
+                GooglePlayFilterChips(
+                    categories = categoryChipList,
+                    selectedCategory = currentChipSelection,
+                    onCategorySelected = { chip ->
+                        viewModel.selectCategory(if (chip == "All") null else chip)
+                    }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            // Google Play Protect Style ADB Status
             ConnectionStatusBar(
                 connectionState = connectionState,
                 onVerifyClick = viewModel::verifyConnection
             )
-            Spacer(modifier = Modifier.height(10.dp))
 
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = viewModel::updateSearchQuery,
-                placeholder = { Text("Search apps or GitHub repositories...") },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Google Play Section Header
+            GooglePlaySectionHeader(
+                title = if (selectedCategory == null) "Top Open-Source Charts" else selectedCategory!!,
+                subtitle = "${items.size} curated open-source apps"
             )
 
-            // Category Chips Row
-            if (categories.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = selectedCategory == null,
-                        onClick = { viewModel.selectCategory(null) },
-                        label = { Text("All (${items.size})", fontWeight = FontWeight.Bold) },
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    categories.forEach { category ->
-                        FilterChip(
-                            selected = selectedCategory == category,
-                            onClick = {
-                                viewModel.selectCategory(if (selectedCategory == category) null else category)
-                            },
-                            label = { Text(category, fontWeight = FontWeight.SemiBold) },
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Content: Shimmer Loading, Empty State, or App Cards
+            // Content: Loading, Empty, or Google Play List
             if (isRefreshing && items.isEmpty()) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    repeat(3) {
-                        ShimmerCardPlaceholder(height = 160.dp)
+                    repeat(4) {
+                        ShimmerCardPlaceholder(height = 90.dp, shape = RoundedCornerShape(16.dp))
                     }
                 }
             } else if (items.isEmpty()) {
                 Spacer(modifier = Modifier.weight(1f))
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.size(68.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Storefront,
-                        contentDescription = null,
-                        modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Storefront,
+                            contentDescription = null,
+                            modifier = Modifier.size(34.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = if (searchQuery.isNotBlank()) "No matching apps found" else "No apps available",
                     style = MaterialTheme.typography.titleMedium,
@@ -232,12 +191,13 @@ fun StoreScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(vertical = 6.dp)
                 ) {
-                    items(items, key = { it.app.id }) { item ->
+                    itemsIndexed(items, key = { _, item -> item.app.id }) { index, item ->
                         StoreAppCard(
                             item = item,
+                            rank = if (selectedCategory == null && searchQuery.isBlank()) index + 1 else null,
                             isAdbConnected = connectionState.isConnected,
                             onInstallOrUpdate = { viewModel.installOrUpdate(item) },
                             onOpenApp = {
@@ -259,321 +219,335 @@ fun StoreScreen(
 @Composable
 fun StoreAppCard(
     item: StoreAppItem,
+    rank: Int? = null,
     isAdbConnected: Boolean,
     onInstallOrUpdate: () -> Unit,
     onOpenApp: () -> Unit
 ) {
-    val categoryColor = MaterialTheme.colorScheme.primary
+    var isExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
-    GlassCard(
-        shape = RoundedCornerShape(16.dp)
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .clickable { isExpanded = !isExpanded },
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Header Row: Avatar with gradient accent, Title, Category
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            // Main Google Play App Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val pkgForIcon = item.installedPackage ?: item.app.packageNames.firstOrNull()
-                AppIconImage(
-                    packageName = pkgForIcon,
-                    modifier = Modifier.size(50.dp),
-                    contentFallback = {
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = getCategoryIcon(item.app.icon, item.app.category),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = item.app.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Black,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                        ) {
-                            Text(
-                                text = item.app.category,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
+                // Rank number if in top charts
+                if (rank != null) {
                     Text(
-                        text = item.app.githubRepo,
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "$rank",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(26.dp)
+                    )
+                }
+
+                // 56dp Squircle App Icon
+                val pkgForIcon = item.installedPackage ?: item.app.packageNames.firstOrNull()
+                Surface(
+                    modifier = Modifier.size(54.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    tonalElevation = 1.dp
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppIconImage(
+                            packageName = pkgForIcon,
+                            modifier = Modifier.size(46.dp),
+                            contentFallback = {
+                                Icon(
+                                    imageVector = getCategoryIcon(item.app.icon, item.app.category),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                // Title and Metadata
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.app.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${item.app.category} • ${item.app.githubRepo.substringAfter('/')}",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (item.isUpdateAvailable) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "v${item.installedVersionName} → ${item.latestRelease?.cleanVersion}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else if (item.isInstalled) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Installed • v${item.installedVersionName ?: "latest"}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF00875E), // Google Play Green
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
-            // Description
-            Text(
-                text = item.app.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Status Badge & Version Details
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                when {
-                    !item.isInstalled -> {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(8.dp)
+                // Google Play Action Button
+                when (val status = item.status) {
+                    is UpdateStatus.Downloading -> {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier.width(76.dp)
                         ) {
+                            LinearProgressIndicator(
+                                progress = { status.progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(CircleShape),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "NOT INSTALLED",
+                                text = "${(status.progress * 100).toInt()}%",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
-                    item.isUpdateAvailable -> {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
+                    is UpdateStatus.Installing -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "UPDATE AVAILABLE",
+                                text = "Installing",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    is UpdateStatus.Error -> {
+                        OutlinedButton(
+                            onClick = onInstallOrUpdate,
+                            shape = CircleShape,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text(
+                                text = "Retry",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
                     }
                     else -> {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "INSTALLED",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium,
-                                color = StatusConnected,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
+                        if (!item.isInstalled) {
+                            Button(
+                                onClick = onInstallOrUpdate,
+                                enabled = item.latestAsset != null,
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text(
+                                    text = "Install",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        } else if (item.isUpdateAvailable) {
+                            Button(
+                                onClick = onInstallOrUpdate,
+                                enabled = item.latestAsset != null,
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text(
+                                    text = "Update",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        } else {
+                            FilledTonalButton(
+                                onClick = onOpenApp,
+                                shape = CircleShape,
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = MaterialTheme.colorScheme.primary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text(
+                                    text = "Open",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }
-
-                // Version text
-                val versionDetail = when {
-                    !item.isInstalled -> "Latest: ${item.latestRelease?.cleanVersion ?: "—"}"
-                    item.isUpdateAvailable -> "${item.installedVersionName} → ${item.latestRelease?.cleanVersion}"
-                    else -> "v${item.installedVersionName ?: item.latestRelease?.cleanVersion ?: "—"}"
-                }
-                Text(
-                    text = versionDetail,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold
-                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Action / Progress section
-            when (val status = item.status) {
-                is UpdateStatus.Downloading -> {
-                    LinearProgressIndicator(
-                        progress = { status.progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = MaterialTheme.colorScheme.primary
+            // Expandable details: Description, GitHub Link, Reinstall & Alternative options
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                ) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(bottom = 10.dp)
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // App Description
+                    Text(
+                        text = item.app.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Info & Links Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // GitHub repo link
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.clickable {
+                                val url = "https://github.com/${item.app.githubRepo}"
+                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(intent)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = item.app.githubRepo,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        // Version info
                         Text(
-                            text = "Downloading APK...",
+                            text = if (item.isInstalled) {
+                                "v${item.installedVersionName ?: "?"} (latest: ${item.latestRelease?.cleanVersion ?: "—"})"
+                            } else {
+                                "Latest: ${item.latestRelease?.cleanVersion ?: "—"}"
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            text = "${(status.progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
                     }
-                }
-                is UpdateStatus.Installing -> {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = status.message,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-                is UpdateStatus.Error -> {
-                    Text(
-                        text = status.message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Extra Actions for installed apps (Reinstall / Direct installer)
                     if (item.isInstalled) {
+                        Spacer(modifier = Modifier.height(10.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            OutlinedButton(
-                                onClick = onOpenApp,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .pressScaleEffect()
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Open")
-                            }
                             OutlinedButton(
                                 onClick = onInstallOrUpdate,
-                                shape = RoundedCornerShape(12.dp),
-                                enabled = item.latestAsset != null,
-                                modifier = Modifier.pressScaleEffect()
-                            ) {
-                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Retry")
-                            }
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = onInstallOrUpdate,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .pressScaleEffect(),
-                            enabled = item.latestAsset != null
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Retry Installation")
-                        }
-                    }
-                }
-                else -> {
-                    if (!item.isInstalled) {
-                        GradientButton(
-                            text = if (isAdbConnected) "Install via ADB" else "Install (Package Installer)",
-                            onClick = onInstallOrUpdate,
-                            enabled = item.latestAsset != null,
-                            icon = Icons.Default.Download
-                        )
-                    } else if (item.isUpdateAvailable) {
-                        GradientButton(
-                            text = if (isAdbConnected) "Update via ADB" else "Update (Package Installer)",
-                            onClick = onInstallOrUpdate,
-                            enabled = item.latestAsset != null,
-                            icon = Icons.Default.SystemUpdate
-                        )
-                    } else {
-                        // Installed and up to date
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = onOpenApp,
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .pressScaleEffect()
+                                shape = CircleShape,
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                             ) {
                                 Icon(
-                                    Icons.AutoMirrored.Filled.OpenInNew,
+                                    imageVector = Icons.Default.Refresh,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    "Open App",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            OutlinedButton(
-                                onClick = onInstallOrUpdate,
-                                shape = RoundedCornerShape(14.dp),
-                                enabled = item.latestAsset != null,
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .pressScaleEffect()
-                            ) {
-                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
                                 Text("Reinstall")
+                            }
+
+                            FilledTonalButton(
+                                onClick = onOpenApp,
+                                shape = CircleShape,
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Launch")
                             }
                         }
                     }

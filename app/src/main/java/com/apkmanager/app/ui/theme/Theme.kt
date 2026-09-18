@@ -8,71 +8,71 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryIndigo,
-    onPrimary = Color.White,
-    primaryContainer = PrimaryIndigoContainer,
-    onPrimaryContainer = Color(0xFFC7D2FE),
+    primary = GooglePlayBlueDark,
+    onPrimary = Color(0xFF062E6F),
+    primaryContainer = GooglePlayBlueContainerDark,
+    onPrimaryContainer = Color(0xFFD3E3FD),
 
-    secondary = SecondarySky,
-    onSecondary = Color(0xFF06202B),
-    secondaryContainer = Color(0xFF0E2A3A),
-    onSecondaryContainer = Color(0xFFBAE6FD),
+    secondary = Color(0xFFBDC7DC),
+    onSecondary = Color(0xFF273141),
+    secondaryContainer = Color(0xFF3E4758),
+    onSecondaryContainer = Color(0xFFD9E3F8),
 
-    tertiary = Color(0xFF94A3B8),
-    onTertiary = Color(0xFF0E1015),
-    tertiaryContainer = Color(0xFF252A34),
-    onTertiaryContainer = Color(0xFFE2E8F0),
+    tertiary = GooglePlayGreenDark,
+    onTertiary = Color(0xFF003825),
+    tertiaryContainer = GooglePlayGreenContainerDark,
+    onTertiaryContainer = Color(0xFFC4EED0),
 
-    background = ObsidianBackground,
-    onBackground = TextPrimaryDark,
-    surface = ObsidianSurface,
-    onSurface = TextPrimaryDark,
-    surfaceVariant = ObsidianSurfaceHighlight,
-    onSurfaceVariant = TextSecondaryDark,
+    background = GooglePlaySurfaceDark,
+    onBackground = GooglePlayTextPrimaryDark,
+    surface = GooglePlaySurfaceDark,
+    onSurface = GooglePlayTextPrimaryDark,
+    surfaceVariant = GooglePlaySurfaceContainerHighDark,
+    onSurfaceVariant = GooglePlayTextSecondaryDark,
 
-    surfaceContainerLowest = Color(0xFF0A0C10),
-    surfaceContainerLow = ObsidianSurface,
-    surfaceContainer = ObsidianSurface,
-    surfaceContainerHigh = ObsidianSurfaceElevated,
-    surfaceContainerHighest = ObsidianSurfaceHighlight,
+    surfaceContainerLowest = Color(0xFF0C0E10),
+    surfaceContainerLow = GooglePlaySurfaceContainerLowDark,
+    surfaceContainer = GooglePlaySurfaceContainerDark,
+    surfaceContainerHigh = GooglePlaySurfaceContainerHighDark,
+    surfaceContainerHighest = GooglePlaySurfaceContainerHighestDark,
 
-    outline = Color(0xFF343B4A),
-    outlineVariant = ObsidianBorder,
+    outline = GooglePlayOutlineDark,
+    outlineVariant = Color(0xFF32363D),
     error = StatusError,
     onError = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryIndigoDark,
+    primary = GooglePlayBlue,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE0E7FF),
-    onPrimaryContainer = Color(0xFF1E1B4B),
+    primaryContainer = GooglePlayBlueContainer,
+    onPrimaryContainer = Color(0xFF041E49),
 
-    secondary = SecondarySkyDark,
+    secondary = Color(0xFF555F71),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE0F2FE),
-    onSecondaryContainer = Color(0xFF0C4A6E),
+    secondaryContainer = Color(0xFFD9E3F8),
+    onSecondaryContainer = Color(0xFF121C2B),
 
-    tertiary = Color(0xFF64748B),
+    tertiary = GooglePlayGreen,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFF1F5F9),
-    onTertiaryContainer = Color(0xFF0F172A),
+    tertiaryContainer = GooglePlayGreenContainer,
+    onTertiaryContainer = Color(0xFF002114),
 
-    background = SurfaceLight,
-    onBackground = Color(0xFF111418),
-    surface = SurfaceLightElevated,
-    onSurface = Color(0xFF111418),
-    surfaceVariant = Color(0xFFE8ECF1),
-    onSurfaceVariant = Color(0xFF5B6472),
+    background = GooglePlaySurfaceLight,
+    onBackground = GooglePlayTextPrimaryLight,
+    surface = GooglePlaySurfaceLight,
+    onSurface = GooglePlayTextPrimaryLight,
+    surfaceVariant = GooglePlaySurfaceContainerHighLight,
+    onSurfaceVariant = GooglePlayTextSecondaryLight,
 
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF3F4F6),
-    surfaceContainer = Color(0xFFECEFF3),
-    surfaceContainerHigh = Color(0xFFE2E6EC),
-    surfaceContainerHighest = Color(0xFFD6DBE2),
+    surfaceContainerLow = GooglePlaySurfaceContainerLowLight,
+    surfaceContainer = GooglePlaySurfaceContainerLight,
+    surfaceContainerHigh = GooglePlaySurfaceContainerHighLight,
+    surfaceContainerHighest = GooglePlaySurfaceContainerHighestLight,
 
-    outline = Color(0xFFC3CAD4),
-    outlineVariant = Color(0xFFDDE2EA),
+    outline = GooglePlayOutlineLight,
+    outlineVariant = Color(0xFFE0E3E8),
     error = StatusError,
     onError = Color.White
 )
@@ -80,8 +80,8 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun ApkManagerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Default dynamicColor to false so the custom obsidian palette is used
-    dynamicColor: Boolean = false,
+    // Default dynamicColor to true for authentic Android 12+ Material You theming
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

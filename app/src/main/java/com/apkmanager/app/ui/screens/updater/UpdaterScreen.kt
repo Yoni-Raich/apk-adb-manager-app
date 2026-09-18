@@ -30,8 +30,9 @@ import com.apkmanager.app.repository.AdbRepository
 import com.apkmanager.app.repository.AppUpdateRepository
 import com.apkmanager.app.ui.animation.pressScaleEffect
 import com.apkmanager.app.ui.components.ConnectionStatusBar
-import com.apkmanager.app.ui.components.GlassCard
-import com.apkmanager.app.ui.components.GradientButton
+import com.apkmanager.app.ui.components.GooglePlayManageHeader
+import com.apkmanager.app.ui.components.GooglePlaySearchBar
+import com.apkmanager.app.ui.components.GooglePlaySectionHeader
 import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
 import com.apkmanager.app.ui.theme.*
 import com.apkmanager.app.util.AppIconImage
@@ -57,78 +58,7 @@ fun UpdaterScreen(
     val updatableCount = trackedApps.count { it.status is UpdateStatus.UpdateAvailable }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    "GitHub Updater",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Black
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                if (updatableCount > 0) {
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.surfaceVariant,
-                                        shape = RoundedCornerShape(6.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                                    ) {
-                                        Text(
-                                            text = "$updatableCount NEW",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
-                            }
-                            Text(
-                                text = "Automated release tracking for open-source apps",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressScaleEffect()) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            viewModel.loadInstalledApps()
-                            showAddDialog = true
-                        },
-                        modifier = Modifier.pressScaleEffect()
-                    ) {
-                        Icon(Icons.Default.AddCircleOutline, contentDescription = "Add GitHub Repository")
-                    }
-                    IconButton(
-                        onClick = viewModel::checkForUpdates,
-                        enabled = !isRefreshing,
-                        modifier = Modifier.pressScaleEffect()
-                    ) {
-                        if (isRefreshing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(Icons.Default.Refresh, contentDescription = "Check for Updates")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        }
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -137,72 +67,80 @@ fun UpdaterScreen(
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Signature Google Play Search Bar Capsule with back button and actions
+            GooglePlaySearchBar(
+                placeholder = "Manage apps & updates",
+                navigationIcon = {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                trailingContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = {
+                                viewModel.loadInstalledApps()
+                                showAddDialog = true
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add custom repository",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(
+                            onClick = viewModel::checkForUpdates,
+                            enabled = !isRefreshing,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            if (isRefreshing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Check for updates",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Google Play "Manage apps & device" Header Banner
+            GooglePlayManageHeader(
+                updatableCount = updatableCount,
+                isRefreshing = isRefreshing,
+                onUpdateAllClick = viewModel::updateAll,
+                onCheckUpdatesClick = viewModel::checkForUpdates
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             // Connection Status
             ConnectionStatusBar(
                 connectionState = connectionState,
                 onVerifyClick = viewModel::verifyConnection
             )
-            Spacer(modifier = Modifier.height(10.dp))
 
-            // Update All Banner if updates are available
-            if (updatableCount > 0) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.RocketLaunch,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "$updatableCount update${if (updatableCount > 1) "s" else ""} available",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (connectionState.isConnected) "Batch silent update via ADB" else "Batch update via Package Installer",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Button(
-                            onClick = viewModel::updateAll,
-                            enabled = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.pressScaleEffect()
-                        ) {
-                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (connectionState.isConnected) "Update All" else "Update All (Installer)", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
+            Spacer(modifier = Modifier.height(8.dp))
 
             if (isRefreshing && trackedApps.isEmpty()) {
                 Column(
@@ -210,26 +148,26 @@ fun UpdaterScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     repeat(3) {
-                        ShimmerCardPlaceholder(height = 140.dp)
+                        ShimmerCardPlaceholder(height = 90.dp, shape = RoundedCornerShape(18.dp))
                     }
                 }
             } else if (trackedApps.isEmpty()) {
                 Spacer(modifier = Modifier.weight(1f))
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.size(68.dp)
                 ) {
-                    Icon(
-                        Icons.Default.SystemUpdate,
-                        contentDescription = null,
-                        modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.SystemUpdate,
+                            contentDescription = null,
+                            modifier = Modifier.size(34.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = "No GitHub Apps Tracked",
                     style = MaterialTheme.typography.titleMedium,
@@ -237,37 +175,77 @@ fun UpdaterScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Installed open-source apps from GitHub (Streamflix, Hey Mike, YouTube Downloader, etc.) will appear here automatically.",
+                    text = "Installed open-source apps from GitHub will appear here automatically.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                GradientButton(
-                    text = "Add Custom GitHub Repo",
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
                     onClick = {
                         viewModel.loadInstalledApps()
                         showAddDialog = true
                     },
-                    icon = Icons.Default.Add,
-                    modifier = Modifier.padding(horizontal = 32.dp)
-                )
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Track Custom Repository", fontWeight = FontWeight.SemiBold)
+                }
                 Spacer(modifier = Modifier.weight(1f))
             } else {
+                val pendingApps = remember(trackedApps) {
+                    trackedApps.filter { it.status is UpdateStatus.UpdateAvailable || it.status is UpdateStatus.Downloading || it.status is UpdateStatus.Installing }
+                }
+                val otherApps = remember(trackedApps) {
+                    trackedApps.filter { it !in pendingApps }
+                }
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(vertical = 6.dp)
                 ) {
-                    items(trackedApps, key = { it.packageName }) { app ->
-                        TrackedAppItem(
-                            app = app,
-                            isAdbConnected = connectionState.isConnected,
-                            onUpdate = { viewModel.updateApp(app) },
-                            onEdit = { editingApp = app },
-                            onRemove = { viewModel.removeTrackedApp(app) },
-                            onRetry = { viewModel.checkSingleApp(app) }
-                        )
+                    if (pendingApps.isNotEmpty()) {
+                        item {
+                            GooglePlaySectionHeader(
+                                title = "Updates pending",
+                                subtitle = "${pendingApps.size} apps ready to update"
+                            )
+                        }
+                        items(pendingApps, key = { it.packageName }) { app ->
+                            TrackedAppItem(
+                                app = app,
+                                isAdbConnected = connectionState.isConnected,
+                                onUpdate = { viewModel.updateApp(app) },
+                                onEdit = { editingApp = app },
+                                onRemove = { viewModel.removeTrackedApp(app) },
+                                onRetry = { viewModel.checkSingleApp(app) }
+                            )
+                        }
+                    }
+
+                    if (otherApps.isNotEmpty()) {
+                        item {
+                            GooglePlaySectionHeader(
+                                title = "Up to date",
+                                subtitle = "${otherApps.size} apps verified"
+                            )
+                        }
+                        items(otherApps, key = { it.packageName }) { app ->
+                            TrackedAppItem(
+                                app = app,
+                                isAdbConnected = connectionState.isConnected,
+                                onUpdate = { viewModel.updateApp(app) },
+                                onEdit = { editingApp = app },
+                                onRemove = { viewModel.removeTrackedApp(app) },
+                                onRetry = { viewModel.checkSingleApp(app) }
+                            )
+                        }
                     }
                 }
             }
@@ -306,264 +284,279 @@ fun TrackedAppItem(
     onRemove: () -> Unit,
     onRetry: () -> Unit = {}
 ) {
-    GlassCard(
-        shape = RoundedCornerShape(16.dp)
+    var isExpanded by remember { mutableStateOf(false) }
+
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .clickable { isExpanded = !isExpanded },
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Authentic App Icon with stylized initial letter fallback
-                AppIconImage(
-                    packageName = app.packageName,
-                    modifier = Modifier.size(46.dp),
-                    contentFallback = {
-                        Box(
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = app.appName.firstOrNull()?.uppercase() ?: "?",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                // 54dp Squircle App Icon
+                Surface(
+                    modifier = Modifier.size(54.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    tonalElevation = 1.dp
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppIconImage(
+                            packageName = app.packageName,
+                            modifier = Modifier.size(46.dp),
+                            contentFallback = {
+                                Text(
+                                    text = app.appName.firstOrNull()?.uppercase() ?: "?",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        )
                     }
-                )
+                }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
+                // Title and Version Information
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = app.appName,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = app.githubRepo,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                    Spacer(modifier = Modifier.height(2.dp))
 
-                IconButton(
-                    onClick = onEdit,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .pressScaleEffect()
-                ) {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = "Edit Repository",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                IconButton(
-                    onClick = onRemove,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .pressScaleEffect()
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Remove",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Versions Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Installed: ${app.installedVersionName.ifBlank { "v${app.installedVersionCode}" }}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                when (val status = app.status) {
-                    is UpdateStatus.UpdateAvailable -> {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
+                    when (val status = app.status) {
+                        is UpdateStatus.UpdateAvailable -> {
                             Text(
-                                text = "NEW: ${status.release.cleanVersion}",
+                                text = "v${app.installedVersionName} → ${status.release.cleanVersion}",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        is UpdateStatus.Downloading -> {
+                            Text(
+                                text = "Downloading update...",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        is UpdateStatus.Installing -> {
+                            Text(
+                                text = "Installing update...",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        is UpdateStatus.Error -> {
+                            Text(
+                                text = "Update check failed",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        else -> {
+                            Text(
+                                text = "v${app.installedVersionName.ifBlank { "v${app.installedVersionCode}" }} • Up to date",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
-                    is UpdateStatus.UpToDate -> {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(8.dp)
+                    Text(
+                        text = app.githubRepo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Google Play Action Pill or Progress
+                when (val status = app.status) {
+                    is UpdateStatus.UpdateAvailable -> {
+                        Button(
+                            onClick = onUpdate,
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
+                            modifier = Modifier.height(36.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = StatusConnected,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "UP TO DATE",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = StatusConnected
-                                )
-                            }
+                            Text(
+                                text = "Update",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
-                    is UpdateStatus.Checking -> {
+                    is UpdateStatus.Downloading -> {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier.width(76.dp)
+                        ) {
+                            LinearProgressIndicator(
+                                progress = { status.progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(CircleShape),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${(status.progress * 100).toInt()}%",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    is UpdateStatus.Installing -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                    }
+                    is UpdateStatus.Error -> {
+                        OutlinedButton(
+                            onClick = onRetry,
+                            shape = CircleShape,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
                             Text(
-                                text = "Checking...",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "Retry",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
                     }
-                    is UpdateStatus.Success -> {
-                        Text(
-                            text = status.message,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = StatusConnected,
-                            fontWeight = FontWeight.Bold
-                        )
+                    else -> {
+                        IconButton(
+                            onClick = { isExpanded = !isExpanded },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More actions",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                    is UpdateStatus.Error -> {
-                        val isUpdateFailure = status.message.contains("download", ignoreCase = true) ||
-                                status.message.contains("install", ignoreCase = true) ||
-                                status.message.contains("space", ignoreCase = true)
-                        Text(
-                            text = if (isUpdateFailure) "Update failed" else "Check failed",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    else -> {}
                 }
             }
 
-            // Action / Progress bar
-            when (val status = app.status) {
-                is UpdateStatus.UpdateAvailable -> {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    GradientButton(
-                        text = if (isAdbConnected) "Update via ADB" else "Update (Package Installer)",
-                        onClick = onUpdate,
-                        enabled = true,
-                        icon = Icons.Default.SystemUpdate
+            // Expandable details (What's new, repo management)
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                ) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(bottom = 10.dp)
                     )
-                }
-                is UpdateStatus.Downloading -> {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    LinearProgressIndicator(
-                        progress = { status.progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Downloading update: ${(status.progress * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                is UpdateStatus.Installing -> {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+
+                    // Release notes if available
+                    val updateStatus = app.status
+                    if (updateStatus is UpdateStatus.UpdateAvailable && updateStatus.release.body.isNotBlank()) {
                         Text(
-                            text = status.message,
-                            style = MaterialTheme.typography.bodySmall,
+                            text = "What's new (${updateStatus.release.cleanVersion}):",
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = updateStatus.release.body.take(300).trim() + if (updateStatus.release.body.length > 300) "..." else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
-                }
-                is UpdateStatus.Error -> {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = status.message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Action buttons (Edit repo, remove, check single)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedButton(
                             onClick = onRetry,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .pressScaleEffect()
+                            shape = CircleShape,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Retry")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Check", style = MaterialTheme.typography.labelMedium)
                         }
-                        OutlinedButton(
+
+                        FilledTonalButton(
                             onClick = onEdit,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .pressScaleEffect()
+                            shape = CircleShape,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Edit Repo")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Edit", style = MaterialTheme.typography.labelMedium)
+                        }
+
+                        OutlinedButton(
+                            onClick = onRemove,
+                            shape = CircleShape,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Remove", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
-                else -> {}
             }
         }
     }

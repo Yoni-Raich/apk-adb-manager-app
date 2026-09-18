@@ -22,13 +22,16 @@ import com.apkmanager.app.repository.AdbRepository
 import com.apkmanager.app.repository.PackageRepository
 import com.apkmanager.app.ui.animation.pressScaleEffect
 import com.apkmanager.app.ui.components.ConnectionStatusBar
+import com.apkmanager.app.ui.components.GooglePlayFilterChips
+import com.apkmanager.app.ui.components.GooglePlaySearchBar
+import com.apkmanager.app.ui.components.GooglePlaySectionHeader
 import com.apkmanager.app.ui.components.PackageListItem
 import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
 import com.apkmanager.app.ui.theme.SecondaryCyan
 import com.apkmanager.app.util.AppIconImage
 
 /**
- * Premium Package Manager screen for browsing and inspecting installed applications.
+ * Premium Package Manager screen with Google Play Manage tab styling.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +52,9 @@ fun PackagesScreen(
     val connectionState by adbRepository.connectionState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    val filterOptions = listOf("User apps", "System apps")
+    val currentFilter = if (showSystemApps) "System apps" else "User apps"
+
     // Snackbar for uninstall results
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uninstallResult) {
@@ -59,119 +65,92 @@ fun PackagesScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            "Package Manager",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black
-                        )
-                        Text(
-                            text = "Installed device applications",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressScaleEffect()) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = viewModel::toggleSystemApps,
-                        modifier = Modifier.pressScaleEffect()
-                    ) {
-                        Icon(
-                            if (showSystemApps) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (showSystemApps) "Hide system apps" else "Show system apps",
-                            tint = if (showSystemApps) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = viewModel::refresh, modifier = Modifier.pressScaleEffect()) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Google Play Search Bar Capsule
+            GooglePlaySearchBar(
+                query = searchQuery,
+                placeholder = "Search installed packages...",
+                onQueryChange = viewModel::updateSearchQuery,
+                navigationIcon = {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                trailingContent = {
+                    IconButton(
+                        onClick = viewModel::refresh,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh packages",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Google Play Filter Chips
+            GooglePlayFilterChips(
+                categories = filterOptions,
+                selectedCategory = currentFilter,
+                onCategorySelected = { selection ->
+                    if ((selection == "System apps") != showSystemApps) {
+                        viewModel.toggleSystemApps()
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             // Connection Status
             ConnectionStatusBar(
                 connectionState = connectionState,
-                onVerifyClick = viewModel::verifyConnection,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                onVerifyClick = viewModel::verifyConnection
             )
 
-            // Search bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = viewModel::updateSearchQuery,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search by name or package...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Package count chip
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "${packages.size} packages${if (showSystemApps) " (all)" else " (user)"}",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
-            }
+            // Google Play Section Header
+            GooglePlaySectionHeader(
+                title = if (showSystemApps) "System & user applications" else "User applications",
+                subtitle = "${packages.size} packages installed"
+            )
 
             if (isLoading && packages.isEmpty()) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     repeat(6) {
-                        ShimmerCardPlaceholder(height = 70.dp, shape = RoundedCornerShape(18.dp))
+                        ShimmerCardPlaceholder(height = 72.dp, shape = RoundedCornerShape(18.dp))
                     }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    contentPadding = PaddingValues(vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(packages, key = { it.packageName }) { pkg ->
                         PackageListItem(

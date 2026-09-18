@@ -3,30 +3,61 @@ package com.apkmanager.app.ui.theme
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
-// ── Obsidian dark foundation (Linear / GitHub-Mobile inspired) ──
-val ObsidianBackground = Color(0xFF0E1015)
-val ObsidianSurface = Color(0xFF15181E)
-val ObsidianSurfaceElevated = Color(0xFF1C2028)
-val ObsidianSurfaceHighlight = Color(0xFF252A34)
-val ObsidianBorder = Color(0xFF272C37)
+// ── Official Google Play & Material Design 3 Palette ──
+val GooglePlayBlue = Color(0xFF0B57D0)
+val GooglePlayBlueDark = Color(0xFFA8C7FA)
+val GooglePlayBlueContainer = Color(0xFFD3E3FD)
+val GooglePlayBlueContainerDark = Color(0xFF0842A0)
 
-// ── Brand: sophisticated indigo + clean sky ──
-val PrimaryIndigo = Color(0xFF6366F1)
-val PrimaryIndigoDark = Color(0xFF4F46E5)
-val PrimaryIndigoContainer = Color(0xFF23233B)
-val SecondarySky = Color(0xFF38BDF8)
-val SecondarySkyDark = Color(0xFF0284C7)
+val GooglePlayGreen = Color(0xFF00875E)
+val GooglePlayGreenDark = Color(0xFF79D6AC)
+val GooglePlayGreenContainer = Color(0xFFC4EED0)
+val GooglePlayGreenContainerDark = Color(0xFF005238)
+
+val GooglePlaySurfaceLight = Color(0xFFFFFFFF)
+val GooglePlaySurfaceContainerLowLight = Color(0xFFF8F9FA)
+val GooglePlaySurfaceContainerLight = Color(0xFFF0F4F9)
+val GooglePlaySurfaceContainerHighLight = Color(0xFFE9EEF6)
+val GooglePlaySurfaceContainerHighestLight = Color(0xFFE1E7F0)
+
+val GooglePlaySurfaceDark = Color(0xFF111315)
+val GooglePlaySurfaceContainerLowDark = Color(0xFF1A1C1E)
+val GooglePlaySurfaceContainerDark = Color(0xFF1E2022)
+val GooglePlaySurfaceContainerHighDark = Color(0xFF282A2D)
+val GooglePlaySurfaceContainerHighestDark = Color(0xFF333537)
+
+val GooglePlayOutlineLight = Color(0xFFDFE3E7)
+val GooglePlayOutlineDark = Color(0xFF42474E)
+
+val GooglePlayTextPrimaryLight = Color(0xFF1F1F1F)
+val GooglePlayTextSecondaryLight = Color(0xFF444746)
+val GooglePlayTextPrimaryDark = Color(0xFFE2E2E6)
+val GooglePlayTextSecondaryDark = Color(0xFFC4C7C5)
+
+// ── Status: Google Play colors ──
+val StatusConnected = GooglePlayGreen
+val StatusConnecting = Color(0xFFE37400)
+val StatusDisconnected = Color(0xFF74777F)
+val StatusError = Color(0xFFB3261E)
+
+// ── Obsidian & legacy aliases ──
+val ObsidianBackground = GooglePlaySurfaceDark
+val ObsidianSurface = GooglePlaySurfaceContainerDark
+val ObsidianSurfaceElevated = GooglePlaySurfaceContainerHighDark
+val ObsidianSurfaceHighlight = GooglePlaySurfaceContainerHighestDark
+val ObsidianBorder = GooglePlayOutlineDark
+
+// ── Brand: Google Play Blue ──
+val PrimaryIndigo = GooglePlayBlue
+val PrimaryIndigoDark = GooglePlayBlueDark
+val PrimaryIndigoContainer = GooglePlayBlueContainerDark
+val SecondarySky = Color(0xFF00639B)
+val SecondarySkyDark = Color(0xFF7FCFFF)
 
 // ── Text ──
-val TextPrimaryDark = Color(0xFFE8EAF0)
-val TextSecondaryDark = Color(0xFF9AA3B2)
-val TextTertiaryDark = Color(0xFF6B7280)
-
-// ── Status: refined emerald / amber / crimson ──
-val StatusConnected = Color(0xFF10B981)
-val StatusConnecting = Color(0xFFF59E0B)
-val StatusDisconnected = Color(0xFF6B7280)
-val StatusError = Color(0xFFEF4444)
+val TextPrimaryDark = GooglePlayTextPrimaryDark
+val TextSecondaryDark = GooglePlayTextSecondaryDark
+val TextTertiaryDark = Color(0xFF8E918F)
 
 // ── Back-compat aliases (old casino names → new refined values) ──
 // Kept so existing call-sites keep compiling without neon output.

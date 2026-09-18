@@ -267,7 +267,8 @@ fun UpdaterScreen(
                             isAdbConnected = connectionState.isConnected,
                             onUpdate = { viewModel.updateApp(app) },
                             onEdit = { editingApp = app },
-                            onRemove = { viewModel.removeTrackedApp(app) }
+                            onRemove = { viewModel.removeTrackedApp(app) },
+                            onRetry = { viewModel.checkSingleApp(app) }
                         )
                     }
                 }
@@ -304,7 +305,8 @@ fun TrackedAppItem(
     isAdbConnected: Boolean,
     onUpdate: () -> Unit,
     onEdit: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onRetry: () -> Unit = {}
 ) {
     GlassCard(
         shape = RoundedCornerShape(22.dp)
@@ -469,8 +471,11 @@ fun TrackedAppItem(
                         )
                     }
                     is UpdateStatus.Error -> {
+                        val isUpdateFailure = status.message.contains("download", ignoreCase = true) ||
+                                status.message.contains("install", ignoreCase = true) ||
+                                status.message.contains("space", ignoreCase = true)
                         Text(
-                            text = "Check failed",
+                            text = if (isUpdateFailure) "Update failed" else "Check failed",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Bold
@@ -539,16 +544,32 @@ fun TrackedAppItem(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = onEdit,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .pressScaleEffect()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Fix Repository / Edit")
+                        OutlinedButton(
+                            onClick = onRetry,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .pressScaleEffect()
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Retry")
+                        }
+                        OutlinedButton(
+                            onClick = onEdit,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .pressScaleEffect()
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Edit Repo")
+                        }
                     }
                 }
                 else -> {}

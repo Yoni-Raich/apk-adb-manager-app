@@ -169,6 +169,17 @@ class UpdaterViewModel(
         }
     }
 
+    /**
+     * Re-checks update for a single app (e.g. after a network error or retry).
+     */
+    fun checkSingleApp(app: TrackedApp) {
+        viewModelScope.launch {
+            updateAppInList(app.copy(status = UpdateStatus.Checking))
+            val updated = appUpdateRepository.checkUpdate(app)
+            updateAppInList(updated)
+        }
+    }
+
     private fun updateAppInList(updatedApp: TrackedApp) {
         val current = _trackedApps.value.toMutableList()
         val index = current.indexOfFirst { it.packageName == updatedApp.packageName }

@@ -234,8 +234,13 @@ class GitHubClient {
             val validConnection = connection ?: return@withContext Result.failure(Exception("Failed to open connection"))
             val totalBytes = if (asset.size > 0) asset.size else validConnection.contentLengthLong
 
-            if (totalBytes > 0 && destinationFile.usableSpace < totalBytes + 25 * 1024 * 1024L) {
-                return@withContext Result.failure(Exception("Insufficient disk space on device"))
+            // Check usable space on the existing parent directory or fallback to avoid statvfs ENOENT returning 0L on non-existent files
+            val checkDir = destinationFile.parentFile?.apply { mkdirs() } ?: destinationFile
+            val availableSpace = checkDir.usableSpace
+            if (totalBytes > 0 && availableSpace > 0L && availableSpace < totalBytes + 25 * 1024 * 1024L) {
+                val availableMb = availableSpace / (1024 * 1024)
+                val requiredMb = (totalBytes + 25 * 1024 * 1024L) / (1024 * 1024)
+                return@withContext Result.failure(Exception("Insufficient disk space on device (Available: ${availableMb}MB, Required: ${requiredMb}MB)"))
             }
 
             validConnection.inputStream.use { input ->

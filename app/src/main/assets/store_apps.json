@@ -1,0 +1,39 @@
+[
+  {
+    "id": "youtube-downloader",
+    "name": "YouTube Downloader",
+    "description": "Download YouTube and Suno videos, audio, and cover art directly to your device.",
+    "githubRepo": "Yoni-Raich/youtube-downloader-releases",
+    "packageNames": [
+      "com.splendid.ytdl"
+    ],
+    "category": "Media",
+    "icon": "video"
+  },
+  {
+    "id": "streamflix",
+    "name": "StreamFlix",
+    "description": "Stream movies and TV series with automatic multi-source scrapers.",
+    "githubRepo": "Haim098/streamflix-releases",
+    "packageNames": [
+      "com.streamflix",
+      "com.streamflix.dev",
+      "com.streamflixreborn.streamflix",
+      "com.streamflixreborn"
+    ],
+    "category": "Entertainment",
+    "icon": "movie"
+  },
+  {
+    "id": "hey-mike",
+    "name": "Hey Mike",
+    "description": "Voice-enabled autonomous Android AI assistant powered by LLMs.",
+    "githubRepo": "Yoni-Raich/hey-mike",
+    "packageNames": [
+      "dev.androidagent.app.dev",
+      "dev.androidagent.app"
+    ],
+    "category": "Productivity",
+    "icon": "smart_toy"
+  }
+]

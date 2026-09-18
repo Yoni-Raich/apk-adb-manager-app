@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <queries>
+        <package android:name="com.streamflix" />
+        <package android:name="com.streamflix.dev" />
+        <package android:name="dev.androidagent.app.dev" />
+        <package android:name="dev.androidagent.app" />
+        <package android:name="app.revanced.android.gms" />
+        <package android:name="org.jellyfin.mobile" />
+        <package android:name="com.duckduckgo.mobile.android" />
+        <package android:name="org.schabi.newpipe" />
+        <package android:name="app.revanced.manager.flutter" />
+        <package android:name="app.revanced.manager" />
+        <package android:name="eu.kanade.tachiyomi" />
+        <package android:name="com.termux" />
+        <package android:name="io.github.muntashirakon.AppManager" />
+        <package android:name="com.junkfood.seal" />
+        <package android:name="me.brouken.player" />
+        <package android:name="com.aurora.store" />
+        <package android:name="dev.imranr.obtainium" />
+        <package android:name="com.machiav3lli.backup" />
+        <package android:name="ch.deletescape.lawnchair.plass" />
+        <package android:name="ch.deletescape.lawnchair" />
+        <package android:name="com.streamflixreborn.streamflix" />
+        <package android:name="com.tailscale.ipn" />
+    </queries>
+
+    <application
+        android:name=".ApkManagerApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.APKManager">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:theme="@style/Theme.APKManager">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Support opening APK via content URI -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+            </intent-filter>
+
+            <!-- Support opening APK via file URI -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+            </intent-filter>
+
+            <!-- Support standard INSTALL_PACKAGE action -->
+            <intent-filter>
+                <action android:name="android.intent.action.INSTALL_PACKAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.INSTALL_PACKAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+            </intent-filter>
+
+            <!-- Fallback for file managers matching APK extension without explicit MIME type -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.apk" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.apk" />
+            </intent-filter>
+
+            <!-- Support receiving APKs via Share -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".receiver.PairingNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.apkmanager.app.ACTION_PAIR_INPUT" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

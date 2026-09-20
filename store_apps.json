@@ -46,5 +46,16 @@
     ],
     "category": "Games",
     "icon": "play"
+  },
+  {
+    "id": "android-gym",
+    "name": "Android Gym",
+    "description": "Autonomous AI Agent benchmark & test harness for JEV vs. LLM evaluation.",
+    "githubRepo": "Yoni-Raich/android-gym",
+    "packageNames": [
+      "com.example.androidgym"
+    ],
+    "category": "Productivity",
+    "icon": "smart_toy"
   }
 ]

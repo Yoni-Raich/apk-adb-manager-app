@@ -57,5 +57,16 @@
     ],
     "category": "Productivity",
     "icon": "smart_toy"
+  },
+  {
+    "id": "ninja-math",
+    "name": "Ninja Math",
+    "description": "Ninja action game for first graders — every attack is a math question, with adaptive difficulty, 12 worlds, bosses and upgrades.",
+    "githubRepo": "Yoni-Raich/ninja-math",
+    "packageNames": [
+      "com.yoniraich.ninjamath"
+    ],
+    "category": "Games",
+    "icon": "play"
   }
 ]

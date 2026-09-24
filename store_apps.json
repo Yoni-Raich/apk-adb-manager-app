@@ -68,5 +68,16 @@
     ],
     "category": "Games",
     "icon": "play"
+  },
+  {
+    "id": "bus-jam",
+    "name": "Bus Jam: Color Rush",
+    "description": "3D parking-jam puzzle: free the jammed cars, vans and buses so the colorful crowd can board vehicles of their own color. Endless levels, VIP boosts & extra slots.",
+    "githubRepo": "Yoni-Raich/bus-jam",
+    "packageNames": [
+      "com.yoniraich.busjam"
+    ],
+    "category": "Games",
+    "icon": "play"
   }
 ]

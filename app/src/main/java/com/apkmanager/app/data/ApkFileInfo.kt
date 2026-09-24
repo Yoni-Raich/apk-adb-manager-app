@@ -11,8 +11,7 @@ data class ApkFileInfo(
     val size: Long,
     val packageName: String = "",
     val versionName: String = "",
-    val versionCode: Long = 0,
-    val isSplitApk: Boolean = false
+    val versionCode: Long = 0
 ) {
     /**
      * Returns a human-readable file size string.

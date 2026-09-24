@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -159,6 +160,7 @@ fun AppIconImage(
     packageName: String? = null,
     uri: android.net.Uri? = null,
     modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(12.dp),
     fallbackIcon: ImageVector = Icons.Default.Android,
     tint: Color = MaterialTheme.colorScheme.primary,
     contentFallback: (@Composable () -> Unit)? = null
@@ -176,7 +178,7 @@ fun AppIconImage(
         Image(
             bitmap = iconBitmap!!,
             contentDescription = null,
-            modifier = modifier.clip(RoundedCornerShape(10.dp))
+            modifier = modifier.clip(shape)
         )
     } else if (contentFallback != null) {
         contentFallback()
@@ -187,5 +189,19 @@ fun AppIconImage(
             tint = tint,
             modifier = modifier
         )
+    }
+}
+
+/** The installed app's user-visible label, or [fallback] when it can't be resolved. */
+@Composable
+fun rememberAppLabel(packageName: String, fallback: String): String {
+    val context = LocalContext.current
+    return remember(packageName) {
+        try {
+            val pm = context.packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+        } catch (_: Exception) {
+            fallback
+        }
     }
 }

@@ -1,170 +1,189 @@
 package com.apkmanager.app.ui.navigation
 
 import android.net.Uri
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalMall
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LocalMall
+import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.apkmanager.app.ApkManagerApplication
-import com.apkmanager.app.ui.components.AnimatedNavBar
+import com.apkmanager.app.data.updater.UpdateStatus
 import com.apkmanager.app.ui.screens.home.HomeScreen
 import com.apkmanager.app.ui.screens.installer.InstallerScreen
 import com.apkmanager.app.ui.screens.packages.PackagesScreen
 import com.apkmanager.app.ui.screens.pairing.PairingScreen
+import com.apkmanager.app.ui.screens.store.StoreScreen
+import com.apkmanager.app.ui.screens.store.StoreViewModel
+import com.apkmanager.app.ui.screens.updater.UpdaterScreen
+import com.apkmanager.app.ui.screens.updater.UpdaterViewModel
+import com.apkmanager.app.ui.screens.wireless.WirelessScreen
 
-/**
- * Navigation routes for the app.
- */
 object Routes {
     const val HOME = "home"
+    const val STORE = "store"
+    const val UPDATES = "updates"
+    const val APPS = "apps"
+    const val WIRELESS = "wireless"
     const val PAIRING = "pairing"
     const val INSTALLER = "installer"
-    const val PACKAGES = "packages"
-    const val UPDATER = "updater"
-    const val STORE = "store"
 }
 
-/**
- * Main navigation graph with smooth transitions and floating bottom navigation bar.
- */
+private data class Tab(val route: String, val label: String, val selected: ImageVector, val unselected: ImageVector)
+
+private val TABS = listOf(
+    Tab(Routes.HOME, "Home", Icons.Filled.Home, Icons.Outlined.Home),
+    Tab(Routes.STORE, "Store", Icons.Filled.LocalMall, Icons.Outlined.LocalMall),
+    Tab(Routes.UPDATES, "Updates", Icons.Filled.SystemUpdate, Icons.Outlined.SystemUpdate),
+    Tab(Routes.APPS, "Apps", Icons.Filled.Apps, Icons.Outlined.Apps)
+)
+
 @Composable
 fun NavGraph(
     incomingApkUris: List<Uri>? = null,
     onUrisConsumed: () -> Unit = {}
 ) {
     val navController = rememberNavController()
-    val context = LocalContext.current
-    val app = context.applicationContext as ApkManagerApplication
+    val app = LocalContext.current.applicationContext as ApkManagerApplication
 
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    // Shared between Home and their own tabs, scoped to the activity.
+    val storeViewModel: StoreViewModel = viewModel(factory = StoreViewModel.Factory(app.storeRepository))
+    val updaterViewModel: UpdaterViewModel = viewModel(
+        factory = UpdaterViewModel.Factory(app.appUpdateRepository, app.adbRepository)
+    )
+    val trackedApps by updaterViewModel.trackedApps.collectAsStateWithLifecycle()
+    val updateCount = trackedApps.count { it.status is UpdateStatus.UpdateAvailable }
 
-    val topLevelRoutes = listOf(Routes.HOME, Routes.STORE, Routes.UPDATER, Routes.PACKAGES)
-    val shouldShowBottomBar = currentRoute in topLevelRoutes
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
 
-    // Navigate to installer whenever incoming APK URIs are received
     LaunchedEffect(incomingApkUris) {
-        if (!incomingApkUris.isNullOrEmpty()) {
-            if (navController.currentDestination?.route != Routes.INSTALLER) {
-                navController.navigate(Routes.INSTALLER)
-            }
+        if (!incomingApkUris.isNullOrEmpty() && navController.currentDestination?.route != Routes.INSTALLER) {
+            navController.navigate(Routes.INSTALLER)
         }
     }
 
+    val openWireless = { navController.navigate(Routes.WIRELESS) { launchSingleTop = true } }
+
     Scaffold(
         bottomBar = {
-            if (shouldShowBottomBar) {
-                AnimatedNavBar(
-                    currentRoute = currentRoute,
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+            if (currentRoute in TABS.map { it.route }) {
+                NavigationBar {
+                    TABS.forEach { tab ->
+                        val selected = currentRoute == tab.route
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { navController.navigateToTab(tab.route) },
+                            icon = {
+                                BadgedBox(badge = {
+                                    if (tab.route == Routes.UPDATES && updateCount > 0) Badge { Text("$updateCount") }
+                                }) {
+                                    Icon(if (selected) tab.selected else tab.unselected, contentDescription = null)
+                                }
+                            },
+                            label = { Text(tab.label) }
+                        )
                     }
-                )
+                }
             }
         }
-    ) { paddingValues ->
+    ) { padding ->
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = paddingValues.calculateBottomPadding()),
-            enterTransition = {
-                fadeIn(animationSpec = tween(280)) +
-                    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(280))
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(200)) +
-                    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(200))
-            },
-            popEnterTransition = {
-                fadeIn(animationSpec = tween(280)) +
-                    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(280))
-            },
-            popExitTransition = {
-                fadeOut(animationSpec = tween(200)) +
-                    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(200))
-            }
+                .padding(bottom = padding.calculateBottomPadding()),
+            enterTransition = { fadeIn(tween(220)) },
+            exitTransition = { fadeOut(tween(160)) }
         ) {
             composable(Routes.HOME) {
                 HomeScreen(
                     adbRepository = app.adbRepository,
                     selfUpdateRepository = app.selfUpdateRepository,
-                    onNavigateToPairing = { navController.navigate(Routes.PAIRING) },
-                    onNavigateToInstaller = { navController.navigate(Routes.INSTALLER) },
-                    onNavigateToPackages = { navController.navigate(Routes.PACKAGES) },
-                    onNavigateToUpdater = { navController.navigate(Routes.UPDATER) },
-                    onNavigateToStore = { navController.navigate(Routes.STORE) }
+                    storeViewModel = storeViewModel,
+                    updaterViewModel = updaterViewModel,
+                    onOpenWireless = openWireless,
+                    onOpenStore = { navController.navigateToTab(Routes.STORE) },
+                    onOpenUpdates = { navController.navigateToTab(Routes.UPDATES) },
+                    onOpenInstaller = { navController.navigate(Routes.INSTALLER) }
                 )
             }
-
+            composable(Routes.STORE) {
+                StoreScreen(viewModel = storeViewModel, adbRepository = app.adbRepository, onOpenWireless = openWireless)
+            }
+            composable(Routes.UPDATES) {
+                UpdaterScreen(viewModel = updaterViewModel, adbRepository = app.adbRepository, onOpenWireless = openWireless)
+            }
+            composable(Routes.APPS) {
+                PackagesScreen(
+                    adbRepository = app.adbRepository,
+                    packageRepository = app.packageRepository,
+                    onOpenWireless = openWireless
+                )
+            }
+            composable(Routes.WIRELESS) {
+                WirelessScreen(
+                    adbRepository = app.adbRepository,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPairing = { navController.navigate(Routes.PAIRING) }
+                )
+            }
             composable(Routes.PAIRING) {
                 PairingScreen(
                     adbRepository = app.adbRepository,
                     onNavigateBack = { navController.popBackStack() },
-                    onPairingComplete = {
-                        navController.popBackStack()
-                    }
+                    onPairingComplete = { navController.popBackStack() }
                 )
             }
-
             composable(Routes.INSTALLER) {
                 InstallerScreen(
                     adbRepository = app.adbRepository,
-                    incomingUris = incomingApkUris ?: emptyList(),
+                    incomingUris = incomingApkUris.orEmpty(),
                     onIncomingUrisHandled = onUrisConsumed,
                     onNavigateBack = {
-                        if (!navController.popBackStack()) {
-                            navController.navigate(Routes.HOME) {
-                                popUpTo(Routes.INSTALLER) { inclusive = true }
-                            }
-                        }
-                    }
-                )
-            }
-
-            composable(Routes.PACKAGES) {
-                PackagesScreen(
-                    adbRepository = app.adbRepository,
-                    packageRepository = app.packageRepository,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(Routes.UPDATER) {
-                com.apkmanager.app.ui.screens.updater.UpdaterScreen(
-                    appUpdateRepository = app.appUpdateRepository,
-                    adbRepository = app.adbRepository,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(Routes.STORE) {
-                com.apkmanager.app.ui.screens.store.StoreScreen(
-                    storeRepository = app.storeRepository,
-                    adbRepository = app.adbRepository,
-                    onNavigateBack = { navController.popBackStack() }
+                        if (!navController.popBackStack()) navController.navigateToTab(Routes.HOME)
+                    },
+                    onOpenWireless = openWireless
                 )
             }
         }
+    }
+}
+
+private fun NavHostController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }

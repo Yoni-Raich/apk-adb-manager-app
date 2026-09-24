@@ -120,49 +120,4 @@ class PackageRepository(
             }
         }
     }
-
-    /**
-     * Gets details for a single package.
-     */
-    suspend fun getPackageDetails(packageName: String): PackageInfo? {
-        return cachedPackages.find { it.packageName == packageName }
-            ?: run {
-                val pm = context?.packageManager
-                val local = try { pm?.getPackageInfo(packageName, 0) } catch (_: Exception) { null }
-                if (local != null) {
-                    val appInfo = local.applicationInfo
-                    val isSystem = (appInfo?.flags?.let { it and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0 }) == true
-                    PackageInfo(
-                        packageName = packageName,
-                        versionName = local.versionName ?: "",
-                        versionCode = androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(local).toString(),
-                        apkPath = appInfo?.sourceDir ?: "",
-                        installerPackage = "",
-                        firstInstallTime = local.firstInstallTime.toString(),
-                        lastUpdateTime = local.lastUpdateTime.toString(),
-                        targetSdk = appInfo?.targetSdkVersion?.toString() ?: "",
-                        isSystemApp = isSystem
-                    )
-                } else if (adbRepository.isConnected) {
-                    try {
-                        val info = adbRepository.getPackageInfo(packageName)
-                        val apkPath = adbRepository.getApkPath(packageName)
-                        PackageInfo(
-                            packageName = packageName,
-                            versionName = info["versionName"] ?: "",
-                            versionCode = info["versionCode"] ?: "",
-                            apkPath = apkPath ?: info["codePath"] ?: "",
-                            installerPackage = info["installerPackageName"] ?: "",
-                            firstInstallTime = info["firstInstallTime"] ?: "",
-                            lastUpdateTime = info["lastUpdateTime"] ?: "",
-                            targetSdk = info["targetSdk"] ?: ""
-                        )
-                    } catch (e: Exception) {
-                        null
-                    }
-                } else {
-                    null
-                }
-            }
-    }
 }

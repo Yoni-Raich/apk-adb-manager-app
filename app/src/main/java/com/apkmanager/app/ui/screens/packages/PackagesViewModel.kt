@@ -37,16 +37,6 @@ class PackagesViewModel(
 
     init {
         refresh()
-        verifyConnection()
-    }
-
-    /**
-     * Actively tests ADB connection health and attempts auto-reconnect if needed.
-     */
-    fun verifyConnection() {
-        viewModelScope.launch {
-            adbRepository.verifyOrReconnect()
-        }
     }
 
     fun refresh() {
@@ -73,26 +63,11 @@ class PackagesViewModel(
         _selectedPackage.value = null
     }
 
-    fun uninstallPackage(context: android.content.Context, packageName: String) {
+    fun uninstallPackage(packageName: String) {
         viewModelScope.launch {
-            val isAdbReady = adbRepository.verifyOrReconnect()
-            if (isAdbReady) {
-                val result = adbRepository.uninstallPackage(packageName)
-                _uninstallResult.value = when (result) {
-                    is AdbInstaller.InstallResult.Success -> "Uninstalled $packageName"
-                    is AdbInstaller.InstallResult.Failure -> "ADB Uninstall failed: ${result.error}"
-                }
-            } else {
-                try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_DELETE).apply {
-                        data = android.net.Uri.parse("package:$packageName")
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                    _uninstallResult.value = "Launched system uninstaller for $packageName"
-                } catch (e: Exception) {
-                    _uninstallResult.value = "Failed to launch uninstaller: ${e.message}"
-                }
+            _uninstallResult.value = when (val result = adbRepository.uninstallPackage(packageName)) {
+                is AdbInstaller.InstallResult.Success -> "Uninstalled $packageName"
+                is AdbInstaller.InstallResult.Failure -> result.error
             }
             _selectedPackage.value = null
             refresh()

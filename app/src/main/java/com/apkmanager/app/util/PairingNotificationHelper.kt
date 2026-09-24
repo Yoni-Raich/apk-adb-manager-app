@@ -48,7 +48,7 @@ object PairingNotificationHelper {
 
         // Remote input for entering port and pairing code without leaving Settings
         val remoteInput = RemoteInput.Builder(KEY_PAIRING_INPUT)
-            .setLabel("Format: Port Code (e.g. 37215 123456)")
+            .setLabel("6-digit pairing code")
             .build()
 
         // Receiver intent for the action
@@ -62,7 +62,7 @@ object PairingNotificationHelper {
 
         val replyAction = NotificationCompat.Action.Builder(
             android.R.drawable.ic_input_add,
-            "Enter Port & Code",
+            "Enter code",
             replyPendingIntent
         ).addRemoteInput(remoteInput)
             .setAllowGeneratedReplies(true)
@@ -86,12 +86,13 @@ object PairingNotificationHelper {
             settingsPendingIntent
         ).build()
 
-        val contentText = statusMessage ?: "1. Open Wireless Debugging in Settings\n2. Tap 'Pair with code'\n3. Pull down this bar & reply with: Port Code"
+        val contentText = statusMessage
+            ?: "In Wireless debugging, tap Pair device with pairing code, then reply here with the 6-digit code."
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setContentTitle(if (isSuccess) "Pairing Succeeded!" else "Wireless Pairing Active")
-            .setContentText(if (isSuccess) "Device paired successfully. Tap to open app." else contentText)
+            .setContentTitle(if (isSuccess) "Paired" else "Pair APK Manager")
+            .setContentText(contentText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(!isSuccess)

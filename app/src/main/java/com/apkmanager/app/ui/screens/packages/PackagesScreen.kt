@@ -1,62 +1,79 @@
 package com.apkmanager.app.ui.screens.packages
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.*
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.apkmanager.app.data.PackageInfo
 import com.apkmanager.app.repository.AdbRepository
 import com.apkmanager.app.repository.PackageRepository
-import com.apkmanager.app.ui.animation.pressScaleEffect
-import com.apkmanager.app.ui.components.ConnectionStatusBar
-import com.apkmanager.app.ui.components.GooglePlayFilterChips
-import com.apkmanager.app.ui.components.GooglePlaySearchBar
-import com.apkmanager.app.ui.components.GooglePlaySectionHeader
-import com.apkmanager.app.ui.components.PackageListItem
-import com.apkmanager.app.ui.components.ShimmerCardPlaceholder
-import com.apkmanager.app.ui.theme.SecondaryCyan
-import com.apkmanager.app.util.AppIconImage
+import com.apkmanager.app.ui.components.AppIcon
+import com.apkmanager.app.ui.components.AppListRow
+import com.apkmanager.app.ui.components.EmptyState
+import com.apkmanager.app.ui.components.SearchPill
+import com.apkmanager.app.ui.components.rememberAdbGate
+import com.apkmanager.app.util.rememberAppLabel
 
-/**
- * Premium Package Manager screen with Google Play Manage tab styling.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PackagesScreen(
     adbRepository: AdbRepository,
     packageRepository: PackageRepository,
-    onNavigateBack: () -> Unit,
-    viewModel: PackagesViewModel = viewModel(
-        factory = PackagesViewModel.Factory(adbRepository, packageRepository)
-    )
+    onOpenWireless: () -> Unit,
+    viewModel: PackagesViewModel = viewModel(factory = PackagesViewModel.Factory(adbRepository, packageRepository))
 ) {
+    val context = LocalContext.current
     val packages by viewModel.packages.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val showSystemApps by viewModel.showSystemApps.collectAsStateWithLifecycle()
-    val selectedPackage by viewModel.selectedPackage.collectAsStateWithLifecycle()
+    val query by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val showSystem by viewModel.showSystemApps.collectAsStateWithLifecycle()
+    val selected by viewModel.selectedPackage.collectAsStateWithLifecycle()
     val uninstallResult by viewModel.uninstallResult.collectAsStateWithLifecycle()
-    val connectionState by adbRepository.connectionState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    val filterOptions = listOf("User apps", "System apps")
-    val currentFilter = if (showSystemApps) "System apps" else "User apps"
-
-    // Snackbar for uninstall results
+    val connection by adbRepository.connectionState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val requireAdb = rememberAdbGate(connection.isConnected, snackbarHostState, onOpenWireless)
+
     LaunchedEffect(uninstallResult) {
         uninstallResult?.let {
             snackbarHostState.showSnackbar(it)
@@ -64,214 +81,126 @@ fun PackagesScreen(
         }
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Google Play Search Bar Capsule
-            GooglePlaySearchBar(
-                query = searchQuery,
-                placeholder = "Search installed packages...",
-                onQueryChange = viewModel::updateSearchQuery,
-                navigationIcon = {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                trailingContent = {
-                    IconButton(
-                        onClick = viewModel::refresh,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh packages",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Google Play Filter Chips
-            GooglePlayFilterChips(
-                categories = filterOptions,
-                selectedCategory = currentFilter,
-                onCategorySelected = { selection ->
-                    if ((selection == "System apps") != showSystemApps) {
-                        viewModel.toggleSystemApps()
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Connection Status
-            ConnectionStatusBar(
-                connectionState = connectionState,
-                onVerifyClick = viewModel::verifyConnection
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Google Play Section Header
-            GooglePlaySectionHeader(
-                title = if (showSystemApps) "System & user applications" else "User applications",
-                subtitle = "${packages.size} packages installed"
-            )
-
-            if (isLoading && packages.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+            item {
+                Text(
+                    "Installed apps",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                SearchPill(query, viewModel::updateSearchQuery, "Name or package", Modifier.padding(horizontal = 16.dp))
+            }
+            item {
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    repeat(6) {
-                        ShimmerCardPlaceholder(height = 72.dp, shape = RoundedCornerShape(18.dp))
-                    }
+                    TypeChip("User apps", !showSystem) { if (showSystem) viewModel.toggleSystemApps() }
+                    TypeChip("System apps", showSystem) { if (!showSystem) viewModel.toggleSystemApps() }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(packages, key = { it.packageName }) { pkg ->
-                        PackageListItem(
-                            packageInfo = pkg,
-                            onUninstall = { viewModel.selectPackage(pkg) },
-                            onClick = { viewModel.selectPackage(pkg) }
-                        )
-                    }
+            }
+            if (isLoading) {
+                item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) }
+            }
+            if (!isLoading && packages.isEmpty()) {
+                item {
+                    EmptyState(icon = Icons.Default.Apps, title = "No apps", body = "Nothing matches your search.")
                 }
+            }
+            items(packages, key = { it.packageName }) { pkg ->
+                val label = rememberAppLabel(pkg.packageName, pkg.displayName)
+                AppListRow(
+                    title = label,
+                    subtitle = "${pkg.packageName} · ${pkg.versionName.ifBlank { pkg.versionDisplay }}",
+                    icon = { AppIcon(size = 48.dp, packageName = pkg.packageName) },
+                    onClick = { viewModel.selectPackage(pkg) }
+                )
             }
         }
     }
 
-    // Package detail / uninstall dialog
-    selectedPackage?.let { pkg ->
-        PackageDetailDialog(
-            packageInfo = pkg,
-            isAdbConnected = connectionState.isConnected,
-            onDismiss = viewModel::clearSelection,
-            onUninstall = { viewModel.uninstallPackage(context, pkg.packageName) }
-        )
+    selected?.let { pkg ->
+        ModalBottomSheet(onDismissRequest = viewModel::clearSelection) {
+            AppActionsSheet(
+                pkg = pkg,
+                onOpen = { openApp(context, pkg.packageName); viewModel.clearSelection() },
+                onDetails = { openAppDetails(context, pkg.packageName); viewModel.clearSelection() },
+                onUninstall = { requireAdb { viewModel.uninstallPackage(pkg.packageName) } }
+            )
+        }
     }
 }
 
-/**
- * Dialog showing package details with an uninstall option.
- */
 @Composable
-fun PackageDetailDialog(
-    packageInfo: PackageInfo,
-    isAdbConnected: Boolean,
-    onDismiss: () -> Unit,
-    onUninstall: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(22.dp),
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppIconImage(
-                    packageName = packageInfo.packageName,
-                    modifier = Modifier.size(38.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    packageInfo.displayName,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Black
-                )
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                DetailRow("Package", packageInfo.packageName)
-                DetailRow("Version", packageInfo.versionDisplay)
-                if (packageInfo.apkPath.isNotEmpty()) {
-                    DetailRow("APK Path", packageInfo.apkPath)
-                }
-                if (packageInfo.installerPackage.isNotEmpty()) {
-                    DetailRow("Installer", packageInfo.installerPackage)
-                }
-                if (packageInfo.targetSdk.isNotEmpty()) {
-                    DetailRow("Target SDK", packageInfo.targetSdk)
-                }
-                if (packageInfo.firstInstallTime.isNotEmpty()) {
-                    DetailRow("Installed", packageInfo.firstInstallTime)
-                }
-                if (packageInfo.lastUpdateTime.isNotEmpty()) {
-                    DetailRow("Updated", packageInfo.lastUpdateTime)
-                }
-                if (packageInfo.isSystemApp) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = "SYSTEM APPLICATION (CANNOT BE UNINSTALLED)",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            if (!packageInfo.isSystemApp) {
-                Button(
-                    onClick = onUninstall,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text(if (isAdbConnected) "Uninstall via ADB" else "Uninstall", fontWeight = FontWeight.Bold)
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
+private fun TypeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = if (selected) {
+            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+        } else null
     )
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
-    Column(modifier = Modifier.padding(vertical = 3.dp)) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+private fun AppActionsSheet(pkg: PackageInfo, onOpen: () -> Unit, onDetails: () -> Unit, onUninstall: () -> Unit) {
+    val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
+    val canOpen = remember(pkg.packageName) { context.packageManager.getLaunchIntentForPackage(pkg.packageName) != null }
+    Column(Modifier.padding(bottom = 24.dp)) {
+        Row(
+            Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            AppIcon(size = 56.dp, packageName = pkg.packageName)
+            Column {
+                Text(rememberAppLabel(pkg.packageName, pkg.displayName), style = MaterialTheme.typography.titleMedium)
+                Text(pkg.packageName, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+                Text("Version ${pkg.versionDisplay}", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            }
+        }
+        HorizontalDivider(Modifier.padding(vertical = 8.dp), color = scheme.outlineVariant)
+        if (canOpen) SheetAction(Icons.AutoMirrored.Filled.OpenInNew, "Open", onOpen)
+        SheetAction(Icons.Default.Info, "App details", onDetails)
+        if (!pkg.isSystemApp) {
+            SheetAction(Icons.Default.Delete, "Uninstall silently", onUninstall, tint = scheme.error)
+        }
+    }
+}
+
+@Composable
+private fun SheetAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    ListItem(
+        headlineContent = { Text(label, color = if (tint == MaterialTheme.colorScheme.error) tint else MaterialTheme.colorScheme.onSurface) },
+        leadingContent = { Icon(icon, contentDescription = null, tint = tint) },
+        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp)
+    )
+}
+
+private fun openApp(context: Context, packageName: String) {
+    val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return
+    runCatching { context.startActivity(intent) }
+}
+
+private fun openAppDetails(context: Context, packageName: String) {
+    runCatching {
+        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
     }
 }

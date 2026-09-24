@@ -115,6 +115,11 @@ class SelfUpdateRepository(
         val apkFile = File(cacheDir, "apk_manager_update.apk")
 
         try {
+            if (!adbRepository.verifyOrReconnect()) {
+                onProgress(UpdateStatus.Error(AdbRepository.ADB_REQUIRED_MESSAGE))
+                return@withContext false
+            }
+
             onProgress(UpdateStatus.Downloading(0f, 0L, asset.size))
 
             val downloadResult = gitHubClient.downloadAsset(asset, apkFile) { progress, downloaded, total ->
@@ -135,43 +140,22 @@ class SelfUpdateRepository(
                 return@withContext false
             }
 
-            val isAdbReady = adbRepository.verifyOrReconnect()
-            if (isAdbReady) {
-                onProgress(UpdateStatus.Installing("Staging update to device via ADB..."))
+            onProgress(UpdateStatus.Installing("Staging update to device via ADB..."))
 
-                val remoteTmpApk = "/data/local/tmp/apk_manager_update.apk"
-                adbRepository.pushFile(apkFile, remoteTmpApk)
+            val remoteTmpApk = "/data/local/tmp/apk_manager_update.apk"
+            adbRepository.pushFile(apkFile, remoteTmpApk)
 
-                // Delete local file immediately so it doesn't leak when SIGKILL happens
-                if (apkFile.exists()) apkFile.delete()
+            // Delete local file immediately so it doesn't leak when SIGKILL happens
+            if (apkFile.exists()) apkFile.delete()
 
-                onProgress(UpdateStatus.Success("Update staged! Restarting APK Manager..."))
+            onProgress(UpdateStatus.Success("Update staged! Restarting APK Manager..."))
 
-                // Detached execution: wait 2s to allow current process to finish output,
-                // then pm install, then relaunch MainActivity, then remove tmp file.
-                val script = "nohup sh -c 'sleep 2; pm install -r -d -t $remoteTmpApk && am start -n com.apkmanager.app/.MainActivity; rm -f $remoteTmpApk' >/dev/null 2>&1 &"
-                adbRepository.executeShell(script)
+            // Detached execution: wait 2s to allow current process to finish output,
+            // then pm install, then relaunch MainActivity, then remove tmp file.
+            val script = "nohup sh -c 'sleep 2; pm install -r -d -t $remoteTmpApk && am start -n com.apkmanager.app/.MainActivity; rm -f $remoteTmpApk' >/dev/null 2>&1 &"
+            adbRepository.executeShell(script)
 
-                true
-            } else {
-                onProgress(UpdateStatus.Installing("Launching Android Package Installer..."))
-                val sysResult = com.apkmanager.app.installer.SystemPackageInstaller.installApkFile(context, apkFile)
-                when (sysResult) {
-                    is com.apkmanager.app.installer.SystemPackageInstaller.Result.Success -> {
-                        onProgress(UpdateStatus.Success("Package installer launched"))
-                        true
-                    }
-                    is com.apkmanager.app.installer.SystemPackageInstaller.Result.PermissionRequired -> {
-                        context.startActivity(sysResult.intent)
-                        onProgress(UpdateStatus.Error("Please allow installing unknown apps, then retry"))
-                        false
-                    }
-                    is com.apkmanager.app.installer.SystemPackageInstaller.Result.Failure -> {
-                        onProgress(UpdateStatus.Error(sysResult.error))
-                        false
-                    }
-                }
-            }
+            true
         } catch (e: Exception) {
             Log.e(TAG, "Self update error", e)
             onProgress(UpdateStatus.Error(e.message ?: "Self update error"))

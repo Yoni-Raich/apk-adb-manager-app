@@ -5,13 +5,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.apkmanager.app.data.store.StoreAppItem
 import com.apkmanager.app.data.updater.UpdateStatus
-import com.apkmanager.app.repository.AdbRepository
 import com.apkmanager.app.repository.StoreRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -19,8 +19,7 @@ import kotlinx.coroutines.launch
  * ViewModel for managing the open-source app Store catalog.
  */
 class StoreViewModel(
-    private val storeRepository: StoreRepository,
-    private val adbRepository: AdbRepository
+    private val storeRepository: StoreRepository
 ) : ViewModel() {
 
     private val _rawItems = MutableStateFlow<List<StoreAppItem>>(emptyList())
@@ -33,10 +32,9 @@ class StoreViewModel(
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
 
-    val categories: StateFlow<List<String>> = _rawItems.combine(_rawItems) { items, _ ->
-        val cats = items.map { it.app.category }.distinct().sorted()
-        cats
-    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    val categories: StateFlow<List<String>> = _rawItems
+        .map { items -> items.map { it.app.category }.distinct().sorted() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val filteredItems: StateFlow<List<StoreAppItem>> = combine(
         _rawItems,
@@ -53,20 +51,10 @@ class StoreViewModel(
 
             matchesQuery && matchesCategory
         }
-    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     init {
         loadCatalog()
-        verifyConnection()
-    }
-
-    /**
-     * Actively tests ADB connection health and attempts auto-reconnect if needed.
-     */
-    fun verifyConnection() {
-        viewModelScope.launch {
-            adbRepository.verifyOrReconnect()
-        }
     }
 
     fun loadCatalog(forceRefresh: Boolean = false) {
@@ -123,12 +111,11 @@ class StoreViewModel(
     }
 
     class Factory(
-        private val storeRepository: StoreRepository,
-        private val adbRepository: AdbRepository
+        private val storeRepository: StoreRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return StoreViewModel(storeRepository, adbRepository) as T
+            return StoreViewModel(storeRepository) as T
         }
     }
 }

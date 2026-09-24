@@ -1,48 +1,70 @@
 package com.apkmanager.app.ui.screens.pairing
 
-import android.app.Activity
-import android.app.PictureInPictureParams
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.WifiFind
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.apkmanager.app.repository.AdbRepository
-import com.apkmanager.app.ui.animation.pressScaleEffect
-import com.apkmanager.app.ui.components.GlassCard
-import com.apkmanager.app.ui.components.GradientButton
-import com.apkmanager.app.ui.theme.*
+import com.apkmanager.app.ui.screens.pairing.PairingViewModel.PairingState
 import com.apkmanager.app.util.PairingNotificationHelper
 import com.apkmanager.app.util.WirelessDebuggingNavigator
 
-/**
- * Premium Pairing Screen for wireless debugging setup.
- * Clear 3-method guide with notification pairing, PiP, and split-screen inputs.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PairingScreen(
@@ -51,353 +73,211 @@ fun PairingScreen(
     onPairingComplete: () -> Unit,
     viewModel: PairingViewModel = viewModel(factory = PairingViewModel.Factory(adbRepository))
 ) {
-    val pairingPort by viewModel.pairingPort.collectAsStateWithLifecycle()
-    val pairingCode by viewModel.pairingCode.collectAsStateWithLifecycle()
-    val isPairing by viewModel.isPairing.collectAsStateWithLifecycle()
-    val pairingResult by viewModel.pairingResult.collectAsStateWithLifecycle()
-    val pairingServices by viewModel.pairingServices.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
+    val code by viewModel.code.collectAsStateWithLifecycle()
+    val manualPort by viewModel.manualPort.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val discoveredPort by viewModel.discoveredPort.collectAsStateWithLifecycle()
+    var editPort by remember { mutableStateOf(false) }
 
-    // Pairing-mode mDNS discovery restarts on every resume
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> viewModel.startPairingDiscovery()
-                Lifecycle.Event.ON_PAUSE -> viewModel.stopPairingDiscovery()
-                else -> Unit
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            viewModel.stopPairingDiscovery()
-        }
+    LifecycleResumeEffect(Unit) {
+        viewModel.startDiscovery()
+        onPauseOrDispose { viewModel.stopDiscovery() }
     }
 
-    var notificationSent by remember { mutableStateOf(false) }
-
-    // Permission launcher for POST_NOTIFICATIONS on Android 13+
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            PairingNotificationHelper.showPairingNotification(context)
-            notificationSent = true
-            WirelessDebuggingNavigator.openDeveloperSettings(context)
-        }
-    }
-
-    LaunchedEffect(pairingResult) {
-        if (pairingResult is PairingViewModel.PairingState.Success) {
+    LaunchedEffect(state) {
+        if (state == PairingState.Connected || state == PairingState.PairedOnly) {
             PairingNotificationHelper.dismissNotification(context)
-            kotlinx.coroutines.delay(1500)
             onPairingComplete()
         }
+    }
+
+    val startNotificationPairing = {
+        PairingNotificationHelper.showPairingNotification(context)
+        WirelessDebuggingNavigator.openWirelessDebugging(context)
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startNotificationPairing()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            "Pair Device",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black
-                        )
-                        Text(
-                            text = "Establish secure ADB TLS trust",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
+                title = { Text("Pair this phone") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressScaleEffect()) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                }
             )
         }
-    ) { paddingValues ->
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 18.dp)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Method 1 (Recommended): Notification Pairing
+            val scheme = MaterialTheme.colorScheme
+            val found = discoveredPort != null
             Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(1.5.dp, AppGradients.purpleToPink)
+                shape = RoundedCornerShape(16.dp),
+                color = if (found) scheme.tertiaryContainer else scheme.surfaceContainerHigh
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp)
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(AppGradients.purpleToPink),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.NotificationsActive,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Notification Pairing",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Black
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Surface(
-                                    color = SecondaryCyan.copy(alpha = 0.2f),
-                                    shape = RoundedCornerShape(6.dp)
-                                ) {
-                                    Text(
-                                        text = "RECOMMENDED",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = SecondaryCyan,
-                                        fontWeight = FontWeight.Black,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "Never lose the pairing dialog",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Icon(
+                        if (found) Icons.Default.Wifi else Icons.Default.WifiFind,
+                        contentDescription = null,
+                        tint = if (found) scheme.onTertiaryContainer else scheme.onSurfaceVariant
+                    )
                     Text(
-                        text = "Android closes the pairing dialog when switching full-screen apps. Notification reply allows you to enter Port & Code directly from the notification shade!",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        if (found) "Pairing screen found — port filled in for you"
+                        else "Open \"Pair device with pairing code\" in Wireless debugging",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (found) scheme.onTertiaryContainer else scheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    GradientButton(
-                        text = "Start Notification Pairing",
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                PairingNotificationHelper.showPairingNotification(context)
-                                notificationSent = true
-                                WirelessDebuggingNavigator.openDeveloperSettings(context)
-                            }
-                        },
-                        icon = Icons.Default.Notifications,
-                        gradient = AppGradients.purpleToPink
-                    )
-
-                    if (notificationSent) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Surface(
-                            color = StatusConnected.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, StatusConnected.copy(alpha = 0.3f))
-                        ) {
-                            Text(
-                                text = "✓ Notification active! Open 'Pair device with pairing code' in Settings, swipe down notification shade and reply with Port & Code.",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = StatusConnected,
-                                modifier = Modifier.padding(10.dp)
-                            )
-                        }
-                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Enter the 6-digit code", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        "It's shown under \"Pair device with pairing code\" in Wireless debugging.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = scheme.onSurfaceVariant
+                    )
+                }
 
-            // Method 2: Floating Window (PiP)
-            GlassCard {
+                CodeInput(code = code, onCodeChange = viewModel::updateCode, isError = state is PairingState.Failed)
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(SecondaryCyan.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.PictureInPicture,
-                            contentDescription = null,
-                            tint = SecondaryCyan,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Method 2: Floating Window (PiP)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Overlay this app on top of Developer Options",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        when {
+                            manualPort.isNotEmpty() -> "Pairing port $manualPort"
+                            found -> "Pairing port $discoveredPort"
+                            else -> "Waiting for the pairing port…"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = scheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = { editPort = !editPort }) { Text("change") }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            (context as? Activity)?.enterPictureInPictureMode(
-                                PictureInPictureParams.Builder().build()
-                            )
-                        }
-                    },
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp)
-                        .pressScaleEffect()
+                if (editPort) {
+                    OutlinedTextField(
+                        value = manualPort,
+                        onValueChange = viewModel::updateManualPort,
+                        label = { Text("Pairing port") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                (state as? PairingState.Failed)?.let {
+                    Text(it.error, style = MaterialTheme.typography.bodyMedium, color = scheme.error)
+                }
+
+                Button(
+                    onClick = viewModel::pair,
+                    enabled = code.length == 6 && state != PairingState.InProgress,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = scheme.tertiary, contentColor = scheme.onTertiary)
                 ) {
-                    Icon(Icons.Default.PictureInPicture, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Enter Floating Window Mode", fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Method 3: Manual Direct Input
-            GlassCard {
-                Text(
-                    text = "Method 3: Direct / Split-Screen Input",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = if (pairingServices.isNotEmpty()) {
-                        "Pairing mode detected nearby (${pairingServices.size} service(s)). Enter the Port and Code shown on your device below:"
+                    if (state == PairingState.InProgress) {
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = scheme.onTertiary)
+                        Spacer(Modifier.size(10.dp))
+                        Text("Pairing…")
                     } else {
-                        "Open 'Pair device with pairing code' in Wireless Debugging settings, then enter values here:"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = pairingPort,
-                    onValueChange = viewModel::updatePort,
-                    label = { Text("Pairing Port") },
-                    placeholder = { Text("e.g. 37215") },
-                    leadingIcon = { Icon(Icons.Default.Lan, contentDescription = null, tint = SecondaryCyan) },
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !isPairing
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = pairingCode,
-                    onValueChange = viewModel::updateCode,
-                    label = { Text("6-Digit Pairing Code") },
-                    placeholder = { Text("e.g. 482916") },
-                    leadingIcon = { Icon(Icons.Default.Password, contentDescription = null, tint = SecondaryCyan) },
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !isPairing
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                GradientButton(
-                    text = if (isPairing) "Pairing in progress..." else "Start Pairing",
-                    onClick = viewModel::startPairing,
-                    enabled = pairingPort.isNotEmpty() && pairingCode.length == 6 && !isPairing,
-                    icon = Icons.Default.Key,
-                    gradient = AppGradients.primary
-                )
-
-                // Result feedback
-                when (pairingResult) {
-                    is PairingViewModel.PairingState.Success -> {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = StatusConnected.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, StatusConnected.copy(alpha = 0.4f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = StatusConnected)
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    "Pairing successful! Returning to Dashboard...",
-                                    color = StatusConnected,
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
+                        Text("Pair and connect")
                     }
-                    is PairingViewModel.PairingState.Failed -> {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = StatusError.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, StatusError.copy(alpha = 0.4f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Error, contentDescription = null, tint = StatusError)
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = (pairingResult as PairingViewModel.PairingState.Failed).error,
-                                    color = StatusError,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    }
-                    else -> {}
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = scheme.outlineVariant)
+
+            Surface(shape = RoundedCornerShape(20.dp), color = scheme.surfaceContainer) {
+                Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Box(
+                        Modifier.size(40.dp).background(scheme.primaryContainer, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Default.Notifications, contentDescription = null, tint = scheme.onPrimaryContainer) }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Code keeps disappearing?", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Stay in Settings and reply to our notification with just the code. The port is found for you.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurfaceVariant
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                                if (needsPermission) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                else startNotificationPairing()
+                            },
+                            border = BorderStroke(1.dp, scheme.outline)
+                        ) { Text("Pair from notification") }
+                    }
+                }
+            }
+
+            TextButton(
+                onClick = { WirelessDebuggingNavigator.openWirelessDebugging(context) },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Open Wireless debugging")
+                Spacer(Modifier.size(6.dp))
+                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+            }
         }
     }
+}
+
+/** Six boxes backed by one text field, so paste and IME autofill work. */
+@Composable
+private fun CodeInput(code: String, onCodeChange: (String) -> Unit, isError: Boolean) {
+    val scheme = MaterialTheme.colorScheme
+    BasicTextField(
+        value = code,
+        onValueChange = onCodeChange,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = "Pairing code" },
+        decorationBox = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                repeat(6) { index ->
+                    val char = code.getOrNull(index)?.toString().orEmpty()
+                    val focused = index == code.length
+                    Surface(
+                        modifier = Modifier.weight(1f).height(60.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        color = scheme.surface,
+                        border = BorderStroke(
+                            if (focused) 2.dp else 1.dp,
+                            when {
+                                isError -> scheme.error
+                                focused -> scheme.primary
+                                else -> scheme.outline
+                            }
+                        )
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(char, style = MaterialTheme.typography.headlineSmall)
+                        }
+                    }
+                }
+            }
+        }
+    )
 }

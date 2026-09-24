@@ -229,6 +229,11 @@ class AppUpdateRepository(
         val apkFile = File(cacheDir, "${app.packageName}_update.apk")
 
         try {
+            if (!adbRepository.verifyOrReconnect()) {
+                onProgress(UpdateStatus.Error(AdbRepository.ADB_REQUIRED_MESSAGE))
+                return@withContext false
+            }
+
             onProgress(UpdateStatus.Downloading(0f, 0L, asset.size))
 
             val downloadResult = gitHubClient.downloadAsset(asset, apkFile) { progress, downloaded, total ->
@@ -241,53 +246,15 @@ class AppUpdateRepository(
                 return@withContext false
             }
 
-            val isAdbReady = adbRepository.verifyOrReconnect()
-            if (isAdbReady) {
-                onProgress(UpdateStatus.Installing("Installing update via ADB (silent)..."))
-                val installResult = adbRepository.installApk(Uri.fromFile(apkFile))
-
-                when (installResult) {
-                    is AdbInstaller.InstallResult.Success -> {
-                        onProgress(UpdateStatus.Success("Updated successfully!"))
-                        true
-                    }
-                    is AdbInstaller.InstallResult.Failure -> {
-                        onProgress(UpdateStatus.Installing("ADB install failed, launching Package Installer..."))
-                        val sysResult = com.apkmanager.app.installer.SystemPackageInstaller.installApkFile(context, apkFile)
-                        when (sysResult) {
-                            is com.apkmanager.app.installer.SystemPackageInstaller.Result.Success -> {
-                                onProgress(UpdateStatus.Success("Package installer launched"))
-                                true
-                            }
-                            is com.apkmanager.app.installer.SystemPackageInstaller.Result.PermissionRequired -> {
-                                context.startActivity(sysResult.intent)
-                                onProgress(UpdateStatus.Error("Please allow installing unknown apps, then retry"))
-                                false
-                            }
-                            is com.apkmanager.app.installer.SystemPackageInstaller.Result.Failure -> {
-                                onProgress(UpdateStatus.Error(sysResult.error))
-                                false
-                            }
-                        }
-                    }
+            onProgress(UpdateStatus.Installing("Installing silently over ADB..."))
+            when (val installResult = adbRepository.installApk(Uri.fromFile(apkFile))) {
+                is AdbInstaller.InstallResult.Success -> {
+                    onProgress(UpdateStatus.Success("Updated"))
+                    true
                 }
-            } else {
-                onProgress(UpdateStatus.Installing("Launching Package Installer..."))
-                val sysResult = com.apkmanager.app.installer.SystemPackageInstaller.installApkFile(context, apkFile)
-                when (sysResult) {
-                    is com.apkmanager.app.installer.SystemPackageInstaller.Result.Success -> {
-                        onProgress(UpdateStatus.Success("Package installer launched"))
-                        true
-                    }
-                    is com.apkmanager.app.installer.SystemPackageInstaller.Result.PermissionRequired -> {
-                        context.startActivity(sysResult.intent)
-                        onProgress(UpdateStatus.Error("Please allow installing unknown apps, then retry"))
-                        false
-                    }
-                    is com.apkmanager.app.installer.SystemPackageInstaller.Result.Failure -> {
-                        onProgress(UpdateStatus.Error(sysResult.error))
-                        false
-                    }
+                is AdbInstaller.InstallResult.Failure -> {
+                    onProgress(UpdateStatus.Error("Update failed: ${installResult.error}"))
+                    false
                 }
             }
         } catch (e: Exception) {

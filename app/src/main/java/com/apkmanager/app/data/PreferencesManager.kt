@@ -16,21 +16,15 @@ class PreferencesManager(private val context: Context) {
 
     companion object {
         private val KEY_LAST_PORT = intPreferencesKey("last_connection_port")
-        private val KEY_LAST_PAIRING_PORT = intPreferencesKey("last_pairing_port")
         private val KEY_IS_PAIRED = booleanPreferencesKey("is_paired")
         private val KEY_AUTO_CONNECT = booleanPreferencesKey("auto_connect")
-        private val KEY_SHOW_SYSTEM_APPS = booleanPreferencesKey("show_system_apps")
+        private val KEY_KEEP_WIRELESS_ON = booleanPreferencesKey("keep_wireless_debugging_on")
         private val KEY_CUSTOM_TRACKED_REPOS = stringSetPreferencesKey("custom_tracked_repos")
     }
 
     /** Flow of the last used connection port. */
     val lastPort: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[KEY_LAST_PORT] ?: 0
-    }
-
-    /** Flow of the last used pairing port. */
-    val lastPairingPort: Flow<Int> = context.dataStore.data.map { prefs ->
-        prefs[KEY_LAST_PAIRING_PORT] ?: 0
     }
 
     /** Flow of whether the device is paired. */
@@ -43,9 +37,9 @@ class PreferencesManager(private val context: Context) {
         prefs[KEY_AUTO_CONNECT] ?: true
     }
 
-    /** Flow of whether to show system apps. */
-    val showSystemApps: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[KEY_SHOW_SYSTEM_APPS] ?: false
+    /** Flow of whether the app switches Wireless Debugging back on by itself. */
+    val keepWirelessDebuggingOn: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_KEEP_WIRELESS_ON] ?: true
     }
 
     /** Flow of custom tracked GitHub repos in format "packageName|owner/repo". */
@@ -57,13 +51,6 @@ class PreferencesManager(private val context: Context) {
     suspend fun saveLastPort(port: Int) {
         context.dataStore.edit { prefs ->
             prefs[KEY_LAST_PORT] = port
-        }
-    }
-
-    /** Saves the last used pairing port. */
-    suspend fun saveLastPairingPort(port: Int) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_LAST_PAIRING_PORT] = port
         }
     }
 
@@ -81,10 +68,10 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
-    /** Saves the show system apps preference. */
-    suspend fun saveShowSystemApps(show: Boolean) {
+    /** Saves the keep-Wireless-Debugging-on preference. */
+    suspend fun saveKeepWirelessDebuggingOn(keepOn: Boolean) {
         context.dataStore.edit { prefs ->
-            prefs[KEY_SHOW_SYSTEM_APPS] = show
+            prefs[KEY_KEEP_WIRELESS_ON] = keepOn
         }
     }
 

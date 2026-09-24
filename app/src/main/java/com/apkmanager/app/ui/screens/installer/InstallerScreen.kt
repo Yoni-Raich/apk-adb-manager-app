@@ -5,370 +5,304 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Adb
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.apkmanager.app.data.ApkFileInfo
 import com.apkmanager.app.repository.AdbRepository
-import com.apkmanager.app.ui.animation.pressScaleEffect
-import com.apkmanager.app.ui.components.ConnectionStatusBar
-import com.apkmanager.app.ui.components.GlassCard
-import com.apkmanager.app.ui.components.GradientButton
-import com.apkmanager.app.ui.components.InstallProgress
-import com.apkmanager.app.ui.components.InstallProgressIndicator
-import com.apkmanager.app.ui.theme.*
-import com.apkmanager.app.util.AppIconImage
+import com.apkmanager.app.ui.components.AppIcon
 
-/**
- * Premium Installer Screen for selecting and installing local or split APK files.
- */
+private val APK_MIME_TYPES = arrayOf("application/vnd.android.package-archive", "application/octet-stream")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InstallerScreen(
     adbRepository: AdbRepository,
+    incomingUris: List<Uri>,
+    onIncomingUrisHandled: () -> Unit,
     onNavigateBack: () -> Unit,
-    incomingUris: List<Uri> = emptyList(),
-    onIncomingUrisHandled: () -> Unit = {},
+    onOpenWireless: () -> Unit,
     viewModel: InstallerViewModel = viewModel(factory = InstallerViewModel.Factory(adbRepository))
 ) {
-    val selectedApks by viewModel.selectedApks.collectAsStateWithLifecycle()
-    val installProgress by viewModel.installProgress.collectAsStateWithLifecycle()
-    val connectionState by adbRepository.connectionState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val apks by viewModel.selectedApks.collectAsStateWithLifecycle()
+    val progress by viewModel.installProgress.collectAsStateWithLifecycle()
+    val connection by adbRepository.connectionState.collectAsStateWithLifecycle()
 
-    // Process incoming APK URIs received from external apps (ACTION_VIEW / ACTION_SEND)
+    fun select(uris: List<Uri>) {
+        uris.forEach { uri ->
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        }
+        viewModel.onApksSelected(context, uris)
+    }
+
     LaunchedEffect(incomingUris) {
         if (incomingUris.isNotEmpty()) {
-            incomingUris.forEach { uri ->
-                try {
-                    context.contentResolver.takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                } catch (_: Exception) {}
-            }
-            viewModel.onApksSelected(context, incomingUris)
+            select(incomingUris)
             onIncomingUrisHandled()
         }
     }
 
-    // File picker launcher
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            uris.forEach { uri ->
-                try {
-                    context.contentResolver.takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                } catch (_: Exception) {}
-            }
-            viewModel.onApksSelected(context, uris)
-        }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) select(uris)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            "Install APK",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black
-                        )
-                        Text(
-                            text = "Direct silent ADB installation",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
+                title = { Text("Install APK") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, modifier = Modifier.pressScaleEffect()) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                }
             )
         }
-    ) { paddingValues ->
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Connection Status Pill
-            ConnectionStatusBar(
-                connectionState = connectionState,
-                onVerifyClick = viewModel::verifyConnection
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            if (apks.isEmpty()) {
+                PickFilesCard(onPick = { picker.launch(APK_MIME_TYPES) })
+                return@Column
+            }
 
-            if (selectedApks.isEmpty() && installProgress is InstallProgress.Idle) {
-                // Dropzone empty state — prompt to select APK
-                Spacer(modifier = Modifier.weight(0.5f))
+            when (val state = progress) {
+                is InstallProgress.Installing -> ProgressHeader(apks, state.message)
+                is InstallProgress.Success -> ResultHeader(apks, success = true, message = state.message)
+                is InstallProgress.Failure -> ResultHeader(apks, success = false, message = state.message)
+                InstallProgress.Idle -> PackageHeader(apks)
+            }
 
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .clickable {
-                            filePickerLauncher.launch(
-                                arrayOf("application/vnd.android.package-archive", "application/octet-stream")
-                            )
-                        },
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 40.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.FolderZip,
-                                contentDescription = null,
-                                modifier = Modifier.size(36.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+            if (!connection.isConnected && progress !is InstallProgress.Success) {
+                AdbRequiredCard(onConnect = onOpenWireless)
+            }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+            PartsList(apks)
 
-                        Text(
-                            text = "Select APK Files",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface
+            Spacer(Modifier.height(8.dp))
+            when (progress) {
+                is InstallProgress.Installing -> Unit
+                is InstallProgress.Success -> OutlinedButton(
+                    onClick = { viewModel.reset(); picker.launch(APK_MIME_TYPES) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) { Text("Install another") }
+                else -> {
+                    Button(
+                        onClick = viewModel::install,
+                        enabled = connection.isConnected,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary,
+                            contentColor = MaterialTheme.colorScheme.onTertiary
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Single APK or multi-part split APKs\n(base + config splits supported)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.UploadFile, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "Tap anywhere to browse files",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-            } else {
-                // APK selected — show detailed preview list
-                if (selectedApks.isNotEmpty()) {
-                    GlassCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.CheckCircleOutline,
-                                    contentDescription = null,
-                                    tint = StatusConnected,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (selectedApks.size == 1) "Selected Package" else "${selectedApks.size} Split APKs",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Black
-                                )
-                            }
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = "${selectedApks.size} FILE${if (selectedApks.size > 1) "S" else ""}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        LazyColumn(
-                            modifier = Modifier.heightIn(max = 220.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(selectedApks) { apk ->
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        AppIconImage(
-                                            uri = apk.uri,
-                                            modifier = Modifier.size(28.dp),
-                                            fallbackIcon = Icons.AutoMirrored.Filled.InsertDriveFile,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = apk.fileName,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                text = apk.sizeDisplay,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                // Install progress indicator
-                InstallProgressIndicator(progress = installProgress)
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Action buttons
-                when (installProgress) {
-                    is InstallProgress.Idle -> {
-                        GradientButton(
-                            text = if (connectionState.isConnected) "Install via ADB (Silent)" else "Install (Package Installer)",
-                            onClick = { viewModel.install(context) },
-                            enabled = selectedApks.isNotEmpty(),
-                            icon = Icons.Default.InstallMobile
-                        )
-
-                        if (!connectionState.isConnected) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            OutlinedButton(
-                                onClick = onNavigateBack,
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .pressScaleEffect()
-                            ) {
-                                Icon(Icons.Default.Link, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Connect Wireless Debugging (Optional)", fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        OutlinedButton(
-                            onClick = {
-                                filePickerLauncher.launch(
-                                    arrayOf("application/vnd.android.package-archive", "application/octet-stream")
-                                )
-                            },
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .pressScaleEffect()
-                        ) {
-                            Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Choose Different File(s)")
-                        }
-                    }
-                    is InstallProgress.Installing -> {
-                        // Progress is shown by indicator
-                    }
-                    is InstallProgress.Success, is InstallProgress.Failure -> {
-                        GradientButton(
-                            text = "Install Another File",
-                            onClick = viewModel::reset,
-                            icon = Icons.Default.Refresh
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        OutlinedButton(
-                            onClick = onNavigateBack,
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .pressScaleEffect()
-                        ) {
-                            Text("Back to Dashboard", fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    ) { Text(if (progress is InstallProgress.Failure) "Try again" else "Install") }
+                    OutlinedButton(
+                        onClick = { picker.launch(APK_MIME_TYPES) },
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) { Text("Choose other files") }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PickFilesCard(onPick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        onClick = onPick,
+        shape = RoundedCornerShape(28.dp),
+        color = scheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth().padding(top = 24.dp)
+    ) {
+        Column(
+            Modifier.padding(horizontal = 24.dp, vertical = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = scheme.primary, modifier = Modifier.size(48.dp))
+            Text("Choose APK files", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "A single APK, or every part of a split APK (base + config splits).",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun PackageHeader(apks: List<ApkFileInfo>) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        AppIcon(size = 72.dp, uri = apks.first().uri)
+        Column(Modifier.weight(1f)) {
+            Text(apks.first().fileName, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(summary(apks), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun ProgressHeader(apks: List<ApkFileInfo>, message: String) {
+    Column(
+        Modifier.fillMaxWidth().padding(top = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(120.dp),
+                strokeWidth = 5.dp,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+            AppIcon(size = 84.dp, uri = apks.first().uri)
+        }
+        Text(message, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+            Text(
+                "Silent install over ADB — no system prompt",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ResultHeader(apks: List<ApkFileInfo>, success: Boolean, message: String) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = if (success) scheme.tertiaryContainer else scheme.errorContainer
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            AppIcon(size = 56.dp, uri = apks.first().uri)
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(
+                        if (success) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
+                        contentDescription = null,
+                        tint = if (success) scheme.onTertiaryContainer else scheme.onErrorContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        if (success) "Installed" else "Install failed",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (success) scheme.onTertiaryContainer else scheme.onErrorContainer
+                    )
+                }
+                Text(
+                    if (success) apks.first().fileName else message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (success) scheme.onTertiaryContainer else scheme.onErrorContainer
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdbRequiredCard(onConnect: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(shape = RoundedCornerShape(24.dp), color = scheme.errorContainer) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(Icons.Default.Adb, contentDescription = null, tint = scheme.onErrorContainer)
+                Text("Connect ADB to install", style = MaterialTheme.typography.titleSmall, color = scheme.onErrorContainer)
+            }
+            Text(
+                "APK Manager installs only over ADB: silent, no prompts, and split APKs work. It never falls back to the system installer.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onErrorContainer
+            )
+            Button(
+                onClick = onConnect,
+                colors = ButtonDefaults.buttonColors(containerColor = scheme.error, contentColor = scheme.onError)
+            ) { Text("Connect now") }
+        }
+    }
+}
+
+@Composable
+private fun PartsList(apks: List<ApkFileInfo>) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(shape = RoundedCornerShape(24.dp), border = BorderStroke(1.dp, scheme.outlineVariant)) {
+        Column(Modifier.padding(vertical = 8.dp)) {
+            Text(
+                if (apks.size == 1) "1 file" else "${apks.size} parts",
+                style = MaterialTheme.typography.labelLarge,
+                color = scheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+            )
+            apks.forEach { apk ->
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(Icons.Default.FolderOpen, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                    Text(apk.fileName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (apk.size > 0) Text(apk.sizeDisplay, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+private fun summary(apks: List<ApkFileInfo>): String {
+    val total = apks.sumOf { it.size }
+    val size = if (total > 0) " · " + ApkFileInfo(apks.first().uri, "", total).sizeDisplay else ""
+    return (if (apks.size == 1) "APK" else "Split APK · ${apks.size} parts") + size
 }

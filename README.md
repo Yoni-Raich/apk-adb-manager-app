@@ -7,7 +7,10 @@
 ## Features
 
 - **On-Device ADB via Wireless Debugging**: Connects to the local Android ADB daemon directly using TLS pairing and mDNS auto-discovery without requiring a computer or root.
-- **Silent APK Installation**: Installs single or split APKs silently via ADB shell permissions without manual system prompt confirmations.
+- **Guided Wireless Setup**: A live checklist (Developer options, Wi-Fi, Wireless debugging, pairing) that reads the real system state and connects automatically as soon as Wireless debugging is on.
+- **Code-Only Pairing**: The pairing port is found over mDNS, so you only type the 6-digit code — in the app or as a reply to the pairing notification. Pairing connects right away.
+- **Keeps Wireless Debugging On**: After the first connection the app grants itself `WRITE_SECURE_SETTINGS` over ADB and switches Wireless debugging back on by itself after reboots or Wi-Fi changes (can be turned off).
+- **Silent APK Installation, ADB Only**: Installs single or split APKs silently over ADB. There is no system-installer fallback; without a connection the app asks you to connect.
 - **Package Manager**: Inspect installed applications, package names, version names/codes, and uninstall apps cleanly.
 - **GitHub App Updater**: Automatically scans installed open-source apps, queries the GitHub Releases API, and silently updates apps via ADB with one tap.
 - **Self-Update Engine**: Checks for updates to APK Manager itself from `Yoni-Raich/apk-adb-manager-app` and installs newer versions silently via ADB.
@@ -32,9 +35,9 @@
    - Go to **Settings > System > Developer Options**.
    - Turn on **Wireless Debugging**.
 2. **Pair & Connect**:
-   - Open **APK Manager**.
-   - Tap **Pair** and enter the 6-digit pairing code shown in Wireless Debugging settings.
-   - Tap **Connect** (the app automatically discovers the local port via mDNS).
+   - Open **APK Manager** and tap the Wireless ADB card.
+   - Follow the checklist. When asked to pair, open **Pair device with pairing code** and enter only the 6-digit code.
+   - The app connects on its own — no port to type.
 3. **Install & Update**:
    - Install APKs from device storage.
    - Use the **App Store** or **GitHub App Updater** for one-click silent updates.
@@ -43,7 +46,7 @@
 
 ## Technical Stack
 
-- **UI**: Jetpack Compose, Material 3, Material Icons Extended
+- **UI**: Jetpack Compose, Material 3 (Google Play-style palette), Material Icons Extended, real launcher icons via PackageManager
 - **Architecture**: Clean Architecture with MVVM, Kotlin Coroutines, and StateFlow
 - **ADB Protocol**: Kadb (pure Kotlin on-device ADB protocol implementation over TLS with BouncyCastle certificate management)
 - **Networking**: Real-time GitHub Releases REST API integration with CPU architecture APK matching (`arm64-v8a`, `armeabi-v7a`, `universal`)

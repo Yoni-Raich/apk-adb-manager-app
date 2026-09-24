@@ -113,14 +113,14 @@ fun InstallerScreen(
             }
 
             when (val state = progress) {
-                is InstallProgress.Installing -> ProgressHeader(apks, state.message)
+                is InstallProgress.Installing -> ProgressHeader(apks, state.message, viaAdb = connection.isConnected)
                 is InstallProgress.Success -> ResultHeader(apks, success = true, message = state.message)
                 is InstallProgress.Failure -> ResultHeader(apks, success = false, message = state.message)
                 InstallProgress.Idle -> PackageHeader(apks)
             }
 
             if (!connection.isConnected && progress !is InstallProgress.Success) {
-                AdbRequiredCard(onConnect = onOpenWireless)
+                NoAdbCard(onConnect = onOpenWireless)
             }
 
             PartsList(apks)
@@ -135,7 +135,6 @@ fun InstallerScreen(
                 else -> {
                     Button(
                         onClick = viewModel::install,
-                        enabled = connection.isConnected,
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.tertiary,
@@ -190,7 +189,7 @@ private fun PackageHeader(apks: List<ApkFileInfo>) {
 }
 
 @Composable
-private fun ProgressHeader(apks: List<ApkFileInfo>, message: String) {
+private fun ProgressHeader(apks: List<ApkFileInfo>, message: String, viaAdb: Boolean) {
     Column(
         Modifier.fillMaxWidth().padding(top = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -208,7 +207,7 @@ private fun ProgressHeader(apks: List<ApkFileInfo>, message: String) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             Text(
-                "Silent install over ADB — no system prompt",
+                if (viaAdb) "Silent install over ADB — no system prompt" else "Confirm in Android's installer",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -254,23 +253,20 @@ private fun ResultHeader(apks: List<ApkFileInfo>, success: Boolean, message: Str
 }
 
 @Composable
-private fun AdbRequiredCard(onConnect: () -> Unit) {
+private fun NoAdbCard(onConnect: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    Surface(shape = RoundedCornerShape(24.dp), color = scheme.errorContainer) {
+    Surface(shape = RoundedCornerShape(24.dp), color = scheme.surfaceContainer) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Icon(Icons.Default.Adb, contentDescription = null, tint = scheme.onErrorContainer)
-                Text("Connect ADB to install", style = MaterialTheme.typography.titleSmall, color = scheme.onErrorContainer)
+                Icon(Icons.Default.Adb, contentDescription = null, tint = scheme.primary)
+                Text("Wireless ADB is off", style = MaterialTheme.typography.titleSmall)
             }
             Text(
-                "APK Manager installs only over ADB: silent, no prompts, and split APKs work. It never falls back to the system installer.",
+                "Android's installer will ask you to confirm. Connect ADB for silent installs.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = scheme.onErrorContainer
+                color = scheme.onSurfaceVariant
             )
-            Button(
-                onClick = onConnect,
-                colors = ButtonDefaults.buttonColors(containerColor = scheme.error, contentColor = scheme.onError)
-            ) { Text("Connect now") }
+            OutlinedButton(onClick = onConnect) { Text("Connect ADB") }
         }
     }
 }

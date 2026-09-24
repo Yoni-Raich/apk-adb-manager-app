@@ -1,5 +1,6 @@
 package com.apkmanager.app.repository
 
+import com.apkmanager.app.installer.SystemInstaller
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -115,11 +116,6 @@ class SelfUpdateRepository(
         val apkFile = File(cacheDir, "apk_manager_update.apk")
 
         try {
-            if (!adbRepository.verifyOrReconnect()) {
-                onProgress(UpdateStatus.Error(AdbRepository.ADB_REQUIRED_MESSAGE))
-                return@withContext false
-            }
-
             onProgress(UpdateStatus.Downloading(0f, 0L, asset.size))
 
             val downloadResult = gitHubClient.downloadAsset(asset, apkFile) { progress, downloaded, total ->
@@ -138,6 +134,21 @@ class SelfUpdateRepository(
             if (!verifySignatures(apkFile)) {
                 onProgress(UpdateStatus.Error("Signature mismatch: The downloaded APK does not match current app signing key."))
                 return@withContext false
+            }
+
+            if (!adbRepository.verifyOrReconnect()) {
+                onProgress(UpdateStatus.Installing("Confirm in Android's installer..."))
+                val result = SystemInstaller.install(context, listOf(android.net.Uri.fromFile(apkFile)))
+                return@withContext when (result) {
+                    is AdbInstaller.InstallResult.Success -> {
+                        onProgress(UpdateStatus.Success("Updated"))
+                        true
+                    }
+                    is AdbInstaller.InstallResult.Failure -> {
+                        onProgress(UpdateStatus.Error(result.error))
+                        false
+                    }
+                }
             }
 
             onProgress(UpdateStatus.Installing("Staging update to device via ADB..."))

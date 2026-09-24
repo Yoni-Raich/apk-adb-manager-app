@@ -63,8 +63,18 @@ class PackagesViewModel(
         _selectedPackage.value = null
     }
 
-    fun uninstallPackage(packageName: String) {
+    fun uninstallPackage(context: android.content.Context, packageName: String) {
         viewModelScope.launch {
+            if (!adbRepository.verifyOrReconnect()) {
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.content.Intent.ACTION_DELETE, android.net.Uri.parse("package:$packageName"))
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
+                _selectedPackage.value = null
+                return@launch
+            }
             _uninstallResult.value = when (val result = adbRepository.uninstallPackage(packageName)) {
                 is AdbInstaller.InstallResult.Success -> "Uninstalled $packageName"
                 is AdbInstaller.InstallResult.Failure -> result.error

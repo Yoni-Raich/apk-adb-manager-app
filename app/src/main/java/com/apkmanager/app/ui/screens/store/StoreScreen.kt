@@ -49,7 +49,6 @@ import com.apkmanager.app.ui.components.SearchPill
 import com.apkmanager.app.ui.components.SecondaryPillButton
 import com.apkmanager.app.ui.components.isBusy
 import com.apkmanager.app.ui.components.progressText
-import com.apkmanager.app.ui.components.rememberAdbGate
 
 @Composable
 fun StoreScreen(
@@ -65,7 +64,6 @@ fun StoreScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val connection by adbRepository.connectionState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val requireAdb = rememberAdbGate(connection.isConnected, snackbarHostState, onOpenWireless)
     val featured = if (query.isBlank() && selectedCategory == null) items.firstOrNull { !it.isInstalled } else null
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
@@ -102,7 +100,7 @@ fun StoreScreen(
                 item {
                     FeaturedCard(
                         item = featured,
-                        onInstall = { requireAdb { viewModel.installOrUpdate(featured) } },
+                        onInstall = { viewModel.installOrUpdate(featured) },
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
                     )
                 }
@@ -129,7 +127,7 @@ fun StoreScreen(
             items(items, key = { it.app.id }) { item ->
                 StoreRow(
                     item = item,
-                    onInstall = { requireAdb { viewModel.installOrUpdate(item) } },
+                    onInstall = { viewModel.installOrUpdate(item) },
                     onOpen = { openApp(context, item.installedPackage) }
                 )
             }

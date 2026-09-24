@@ -25,7 +25,7 @@ sealed class InstallProgress {
 }
 
 /**
- * ViewModel for the Installer screen. Installs run over ADB only.
+ * ViewModel for the Installer screen: silent over ADB, Android's installer without it.
  */
 class InstallerViewModel(
     private val adbRepository: AdbRepository
@@ -97,11 +97,7 @@ class InstallerViewModel(
             _installProgress.value = InstallProgress.Installing(
                 if (apks.size == 1) "Installing ${apks[0].fileName}" else "Installing ${apks.size} parts"
             )
-            val result = if (apks.size == 1) {
-                adbRepository.installApk(apks[0].uri)
-            } else {
-                adbRepository.installSplitApks(apks.map { it.uri })
-            }
+            val result = adbRepository.install(apks.map { it.uri })
             _installProgress.value = when (result) {
                 is AdbInstaller.InstallResult.Success -> InstallProgress.Success("Installed")
                 is AdbInstaller.InstallResult.Failure -> InstallProgress.Failure(result.error)

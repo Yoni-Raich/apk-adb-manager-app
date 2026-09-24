@@ -13,6 +13,7 @@ import com.apkmanager.app.adb.AdbPairing
 import com.apkmanager.app.adb.AdbServiceDiscovery
 import com.apkmanager.app.data.ConnectionState
 import com.apkmanager.app.data.PreferencesManager
+import com.apkmanager.app.installer.SystemInstaller
 import com.apkmanager.app.util.WirelessDebugging
 import com.apkmanager.app.util.WirelessStatus
 import com.flyfishxu.kadb.cert.KadbCert
@@ -45,8 +46,8 @@ class AdbRepository(private val context: Context) {
     companion object {
         private const val TAG = "AdbRepository"
 
-        /** Shown whenever an install is attempted without a live ADB connection. */
-        const val ADB_REQUIRED_MESSAGE = "Wireless ADB isn't connected. Connect it to install."
+        /** Shown when an action that has no non-ADB fallback runs without a connection. */
+        const val ADB_REQUIRED_MESSAGE = "Wireless ADB isn't connected."
 
         private const val PAIRING_PORT_TIMEOUT_MS = 6_000L
         private const val CONNECT_PORT_TIMEOUT_MS = 12_000L
@@ -307,23 +308,12 @@ class AdbRepository(private val context: Context) {
     }
 
     /**
-     * Installs a single APK. Verifies active connection first.
+     * Installs one APK or all parts of a split APK: silently over ADB when connected,
+     * otherwise through Android's installer, which asks the user to confirm.
      */
-    suspend fun installApk(apkUri: Uri): AdbInstaller.InstallResult {
-        if (!verifyOrReconnect()) {
-            return AdbInstaller.InstallResult.Failure(ADB_REQUIRED_MESSAGE)
-        }
-        return adbClient.installApk(apkUri)
-    }
-
-    /**
-     * Installs split APKs. Verifies active connection first.
-     */
-    suspend fun installSplitApks(apkUris: List<Uri>): AdbInstaller.InstallResult {
-        if (!verifyOrReconnect()) {
-            return AdbInstaller.InstallResult.Failure(ADB_REQUIRED_MESSAGE)
-        }
-        return adbClient.installSplitApks(apkUris)
+    suspend fun install(apkUris: List<Uri>): AdbInstaller.InstallResult {
+        if (!verifyOrReconnect()) return SystemInstaller.install(context, apkUris)
+        return if (apkUris.size == 1) adbClient.installApk(apkUris[0]) else adbClient.installSplitApks(apkUris)
     }
 
     /**

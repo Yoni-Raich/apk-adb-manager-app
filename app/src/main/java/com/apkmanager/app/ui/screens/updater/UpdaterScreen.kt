@@ -51,7 +51,6 @@ import com.apkmanager.app.ui.components.ProgressAppIcon
 import com.apkmanager.app.ui.components.SecondaryPillButton
 import com.apkmanager.app.ui.components.isBusy
 import com.apkmanager.app.ui.components.progressText
-import com.apkmanager.app.ui.components.rememberAdbGate
 
 @Composable
 fun UpdaterScreen(
@@ -64,7 +63,6 @@ fun UpdaterScreen(
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
     val connection by adbRepository.connectionState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val requireAdb = rememberAdbGate(connection.isConnected, snackbarHostState, onOpenWireless)
     var showAdd by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<TrackedApp?>(null) }
 
@@ -116,7 +114,7 @@ fun UpdaterScreen(
                                     color = scheme.onSurfaceVariant
                                 )
                             }
-                            if (available > 0) InstallButton("Update all", onClick = { requireAdb(viewModel::updateAll) })
+                            if (available > 0) InstallButton("Update all", onClick = { viewModel.updateAll() })
                         }
                     }
                 }
@@ -132,7 +130,7 @@ fun UpdaterScreen(
             }
 
             items(pending, key = { "p-" + it.packageName }) { app ->
-                UpdateRow(app, onUpdate = { requireAdb { viewModel.updateApp(app) } }, onRetry = { viewModel.checkSingleApp(app) },
+                UpdateRow(app, onUpdate = { viewModel.updateApp(app) }, onRetry = { viewModel.checkSingleApp(app) },
                     onEdit = { editing = app }, onRemove = { viewModel.removeTrackedApp(app) })
             }
             items(checking, key = { "c-" + it.packageName }) { app ->

@@ -52,7 +52,6 @@ import com.apkmanager.app.ui.components.SectionHeader
 import com.apkmanager.app.ui.components.StatusBanner
 import com.apkmanager.app.ui.components.isBusy
 import com.apkmanager.app.ui.components.progressText
-import com.apkmanager.app.ui.components.rememberAdbGate
 import com.apkmanager.app.ui.screens.store.StoreViewModel
 import com.apkmanager.app.ui.screens.updater.UpdaterViewModel
 
@@ -74,7 +73,6 @@ fun HomeScreen(
     val trackedApps by updaterViewModel.trackedApps.collectAsStateWithLifecycle()
     val storeItems by storeViewModel.filteredItems.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val requireAdb = rememberAdbGate(connection.isConnected, snackbarHostState, onOpenWireless)
 
     val pendingUpdates = trackedApps.filter { it.status is UpdateStatus.UpdateAvailable || it.status.isBusy }
     val discover = storeItems.filter { !it.isInstalled }.ifEmpty { storeItems }
@@ -122,7 +120,7 @@ fun HomeScreen(
                 item {
                     SelfUpdateCard(
                         info = info,
-                        onUpdate = { requireAdb(viewModel::installSelfUpdate) },
+                        onUpdate = { viewModel.installSelfUpdate() },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
@@ -148,7 +146,7 @@ fun HomeScreen(
                         },
                         trailing = {
                             if (!app.status.isBusy) {
-                                InstallButton("Update", onClick = { requireAdb { updaterViewModel.updateApp(app) } })
+                                InstallButton("Update", onClick = { updaterViewModel.updateApp(app) })
                             }
                         }
                     )

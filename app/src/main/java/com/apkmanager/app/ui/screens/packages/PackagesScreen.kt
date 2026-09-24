@@ -52,7 +52,6 @@ import com.apkmanager.app.ui.components.AppIcon
 import com.apkmanager.app.ui.components.AppListRow
 import com.apkmanager.app.ui.components.EmptyState
 import com.apkmanager.app.ui.components.SearchPill
-import com.apkmanager.app.ui.components.rememberAdbGate
 import com.apkmanager.app.util.rememberAppLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,7 +71,6 @@ fun PackagesScreen(
     val uninstallResult by viewModel.uninstallResult.collectAsStateWithLifecycle()
     val connection by adbRepository.connectionState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val requireAdb = rememberAdbGate(connection.isConnected, snackbarHostState, onOpenWireless)
 
     LaunchedEffect(uninstallResult) {
         uninstallResult?.let {
@@ -131,7 +129,7 @@ fun PackagesScreen(
                 pkg = pkg,
                 onOpen = { openApp(context, pkg.packageName); viewModel.clearSelection() },
                 onDetails = { openAppDetails(context, pkg.packageName); viewModel.clearSelection() },
-                onUninstall = { requireAdb { viewModel.uninstallPackage(pkg.packageName) } }
+                onUninstall = { viewModel.uninstallPackage(context, pkg.packageName) }
             )
         }
     }

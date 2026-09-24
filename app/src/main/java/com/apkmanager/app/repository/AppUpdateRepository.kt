@@ -229,11 +229,6 @@ class AppUpdateRepository(
         val apkFile = File(cacheDir, "${app.packageName}_update.apk")
 
         try {
-            if (!adbRepository.verifyOrReconnect()) {
-                onProgress(UpdateStatus.Error(AdbRepository.ADB_REQUIRED_MESSAGE))
-                return@withContext false
-            }
-
             onProgress(UpdateStatus.Downloading(0f, 0L, asset.size))
 
             val downloadResult = gitHubClient.downloadAsset(asset, apkFile) { progress, downloaded, total ->
@@ -246,8 +241,8 @@ class AppUpdateRepository(
                 return@withContext false
             }
 
-            onProgress(UpdateStatus.Installing("Installing silently over ADB..."))
-            when (val installResult = adbRepository.installApk(Uri.fromFile(apkFile))) {
+            onProgress(UpdateStatus.Installing(if (adbRepository.isConnected) "Installing silently over ADB..." else "Confirm in Android's installer..."))
+            when (val installResult = adbRepository.install(listOf(Uri.fromFile(apkFile)))) {
                 is AdbInstaller.InstallResult.Success -> {
                     onProgress(UpdateStatus.Success("Updated"))
                     true

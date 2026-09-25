@@ -100,8 +100,8 @@ class PackageRepository(
                 emptyList()
             }
 
-            cachedPackages = packages
-            _packages.value = packages
+            cachedPackages = packages.distinctBy { it.packageName }
+            _packages.value = cachedPackages
         } finally {
             _isLoading.value = false
         }

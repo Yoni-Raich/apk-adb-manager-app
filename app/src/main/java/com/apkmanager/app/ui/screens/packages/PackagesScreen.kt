@@ -63,10 +63,11 @@ fun PackagesScreen(
     viewModel: PackagesViewModel = viewModel(factory = PackagesViewModel.Factory(adbRepository, packageRepository))
 ) {
     val context = LocalContext.current
-    val packages by viewModel.packages.collectAsStateWithLifecycle()
+    val allPackages by viewModel.packages.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val query by viewModel.searchQuery.collectAsStateWithLifecycle()
     val showSystem by viewModel.showSystemApps.collectAsStateWithLifecycle()
+    val packages = remember(allPackages, showSystem) { allPackages.filter { it.isSystemApp == showSystem } }
     val selected by viewModel.selectedPackage.collectAsStateWithLifecycle()
     val uninstallResult by viewModel.uninstallResult.collectAsStateWithLifecycle()
     val connection by adbRepository.connectionState.collectAsStateWithLifecycle()

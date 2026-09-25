@@ -30,6 +30,22 @@ class AdbClient(private val context: Context) {
         private val PACKAGE_NAME_REGEX = Regex("^[a-zA-Z0-9_]+(\\.[a-zA-Z0-9_]+)+$")
 
         fun isValidPackageName(packageName: String): Boolean = PACKAGE_NAME_REGEX.matches(packageName)
+
+        /** `package:<apk path>=<package>[  installer=<package>]`; the path itself may contain `=`. */
+        private val PACKAGE_LINE_REGEX = Regex("""^package:(.+?)=([A-Za-z0-9_.]+)(?:\s+installer=(\S+))?$""")
+
+        /** Parses `pm list packages -f -i` output, one entry per package. */
+        fun parsePackageList(output: String): List<PackageEntry> =
+            output.lineSequence()
+                .mapNotNull { PACKAGE_LINE_REGEX.matchEntire(it.trim()) }
+                .mapNotNull { match ->
+                    val (path, pkg, installer) = match.destructured
+                    if (!isValidPackageName(pkg)) null
+                    else PackageEntry(packageName = pkg, apkPath = path, installer = installer.takeIf { it != "null" }.orEmpty())
+                }
+                .distinctBy { it.packageName }
+                .sortedBy { it.packageName }
+                .toList()
     }
 
     private var client: Kadb? = null
@@ -150,28 +166,7 @@ class AdbClient(private val context: Context) {
 
     suspend fun listPackagesDetailed(includeSystemApps: Boolean = false): List<PackageEntry> = withContext(Dispatchers.IO) {
         val flag = if (includeSystemApps) "-f -i" else "-f -i -3"
-        val output = executeShell("pm list packages $flag").output
-        val entries = mutableListOf<PackageEntry>()
-
-        for (line in output.lines()) {
-            val trimmed = line.trim()
-            if (!trimmed.startsWith("package:")) continue
-            val content = trimmed.removePrefix("package:")
-            val eqIndex = content.lastIndexOf('=')
-            if (eqIndex == -1) continue
-
-            val path = content.substring(0, eqIndex).trim()
-            val remainder = content.substring(eqIndex + 1).trim()
-            val parts = remainder.split("\\s+".toRegex())
-            val pkg = parts.firstOrNull() ?: continue
-            if (!isValidPackageName(pkg)) continue
-
-            val installerPart = parts.find { it.startsWith("installer=") }
-            val installer = installerPart?.removePrefix("installer=")?.takeIf { it != "null" } ?: ""
-
-            entries.add(PackageEntry(packageName = pkg, apkPath = path, installer = installer))
-        }
-        entries.sortedBy { it.packageName }
+        parsePackageList(executeShell("pm list packages --user 0 $flag").output)
     }
 
     suspend fun getPackageInfo(packageName: String): Map<String, String> = withContext(Dispatchers.IO) {

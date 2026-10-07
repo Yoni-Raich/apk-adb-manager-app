@@ -79,5 +79,16 @@
     ],
     "category": "Games",
     "icon": "play"
+  },
+  {
+    "id": "ghostride",
+    "name": "GhostRide",
+    "description": "Race your own ghost: record rides and heart rate, compete against a previous ride on a 3D map, and track your progress over time.",
+    "githubRepo": "Yoni-Raich/ghostride-releases",
+    "packageNames": [
+      "com.yoni.ghostride"
+    ],
+    "category": "Sports",
+    "icon": "default"
   }
 ]
